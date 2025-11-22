@@ -2,16 +2,16 @@
 
 [![ci](https://github.com/Bill13579/tabby/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Bill13579/tabby/actions/workflows/ci.yml)
 
-Tabby is an open-source window & tab manager that can manage great amounts of windows and tabs at ease.
+TabbyToo is an open-source window & tab manager that can manage great amounts of windows and tabs at ease.
 
-You can install the latest stable version of Tabby on it's Firefox Add-on page: https://addons.mozilla.org/addon/tabby-window-tab-manager/
+You can install the latest stable version of TabbyToo on it's Firefox Add-on page: https://addons.mozilla.org/addon/tabby-window-tab-manager/
 Or, to install the newest development version, see the [Building, Installing, and Editing](#building-installing-and-editing) section.
 
 # Contributing
 
 If you like this project, please share it. Your support is always welcomed!
 
-Tabby is an open-source project and is in active development, so feel free to submit any issues that you are experiencing and I will do my best to fix it. And if you can fix the issue altogether, feel free to submit a pull request!
+TabbyToo is an open-source project and is in active development, so feel free to submit any issues that you are experiencing and I will do my best to fix it. And if you can fix the issue altogether, feel free to submit a pull request!
 
 # Building, Installing, and Editing
 
@@ -28,16 +28,16 @@ Tabby is an open-source project and is in active development, so feel free to su
 **IMPORTANT NOTE:** If you encounter an issue compiling the "lindera-ipadic" dependency on the `npm run build:firefox` step, it is likely that you do not have enough memory or CPU. This is especially an issue on virtual machines, and is hard to detect since the error messages are incredibly vague.  
 On an Ubuntu VM, 4gb RAM + 2 cores has been proven to work.
 
-## Building Tabby
+## Building TabbyToo
 
 1. Open a git enabled shell of your choice (e.g. Command Prompt, Git Bash)
 2. Get the source code  
 `git clone https://github.com/Bill13579/tabby.git`
-3. Go into the Tabby directory  
+3. Go into the TabbyToo directory  
 `cd tabby`
 4. Install dependencies with npm  
 `npm install`
-5. Build Tabby  
+5. Build TabbyToo  
 Firefox: `npm run build:firefox`  
 Chrome: `npm run build:chrome`  
 WebExtension: `npm run build:webext`
@@ -47,7 +47,7 @@ The `dist` folder, after the build, can then be packaged as a zip file and insta
 ## Installation
 
 ### Firefox
-This will install Tabby as a temporary add-on, so you will need to re-do this everytime you restart Firefox.
+This will install TabbyToo as a temporary add-on, so you will need to re-do this everytime you restart Firefox.
 
 1. Start Firefox
 2. Go to `about:debugging`
@@ -65,17 +65,17 @@ This will install Tabby as a temporary add-on, so you will need to re-do this ev
 
 After you edit the code, you will need to build again.
 
-Re-do Step 5 of [Building Tabby](#building-tabby) and<br/>
-- on Firefox, press the `Reload` button in the Tabby section of the `about:debugging` page.<br/>
-- on Chrome, press the <img src="https://i.imgur.com/FcVtjot.png" alt="Chrome Reload Icon" width="23px" /><!-- https://imgur.com/a/VHMbJ4l --> button in the Tabby section of the `chrome://extensions` page.
+Re-do Step 5 of [Building TabbyToo](#building-tabbytoo) and<br/>
+- on Firefox, press the `Reload` button in the TabbyToo section of the `about:debugging` page.<br/>
+- on Chrome, press the <img src="https://i.imgur.com/FcVtjot.png" alt="Chrome Reload Icon" width="23px" /><!-- https://imgur.com/a/VHMbJ4l --> button in the TabbyToo section of the `chrome://extensions` page.
 
 Note: Content Scripts will only be reloaded for each tab once that tab is refreshed.
 
 # File Structure
 
-icons/ - Directory for storing Tabby icons<br/>
-icons/tabby.svg - Tabby icon (Vector)<br/>
-icons/tabby.png - Tabby icon (Raster)<br/>
+icons/ - Directory for storing TabbyToo icons<br/>
+icons/tabbytoo.svg - TabbyToo icon (Vector)<br/>
+icons/tabbytoo.png - TabbyToo icon (Raster)<br/>
 
 release/ - Release zip files<br/>
 

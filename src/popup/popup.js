@@ -62,17 +62,17 @@ class TUIListOptions {
         }
     }
     move(allowMove) {
-        if (allowMove !== this.allowMove) this.__trigger("change", {allowMove});
+        if (allowMove !== this.allowMove) this.__trigger("change", { allowMove });
         this.allowMove = allowMove;
         return this;
     }
     multiselect(allowMultiselect) {
-        if (allowMultiselect !== this.allowMultiselect) this.__trigger("change", {allowMultiselect});
+        if (allowMultiselect !== this.allowMultiselect) this.__trigger("change", { allowMultiselect });
         this.allowMultiselect = allowMultiselect;
         return this;
     }
-    kbonly(allowKBOnly, skipLevels=[]) {
-        if (allowKBOnly !== this.allowKBOnly) this.__trigger("change", {allowKBOnly, kbNavigation_skipLevels: skipLevels});
+    kbonly(allowKBOnly, skipLevels = []) {
+        if (allowKBOnly !== this.allowKBOnly) this.__trigger("change", { allowKBOnly, kbNavigation_skipLevels: skipLevels });
         this.allowKBOnly = allowKBOnly;
         if (allowKBOnly) {
             this.kbNavigation_skipLevels = skipLevels;
@@ -94,7 +94,7 @@ class TUIList {
         return rootContainer;
     }
     set kb(v) {
-        if (v !== this.__kb) { /*TODO: Make use */}
+        if (v !== this.__kb) { /*TODO: Make use */ }
         this.__kb = v;
     }
     get kb() {
@@ -130,7 +130,7 @@ class TUIList {
             return condition;
         };
     }
-    children(ele, includeSub=false, condition=_ => true) {//TODO: Replace other implementations with this definitive one
+    children(ele, includeSub = false, condition = _ => true) {//TODO: Replace other implementations with this definitive one
         //TODO: Write another function that gets the child at a specific index
         if (ele.isSameNode(this.root)) {
             let c = [];
@@ -161,7 +161,7 @@ class TUIList {
         }
         return current;
     }
-    previous(ele, condition=_ => true) {
+    previous(ele, condition = _ => true) {
         if (ele.isSameNode(this.root)) return null;
         let current = ele.previousElementSibling;
         let currentCondition;
@@ -175,7 +175,7 @@ class TUIList {
         }
         return current;
     }
-    next(ele, condition=_ => true) {
+    next(ele, condition = _ => true) {
         if (ele.isSameNode(this.root)) return null;
         let current = ele.nextElementSibling;
         let currentCondition;
@@ -189,17 +189,17 @@ class TUIList {
         }
         return current;
     }
-    first(condition=_ => true) {
+    first(condition = _ => true) {
         return this.next(this.root.children[0], condition);
     }
-    last(condition=_ => true) {
-        return this.previous(this.root.children[this.root.children.length-1], condition);
+    last(condition = _ => true) {
+        return this.previous(this.root.children[this.root.children.length - 1], condition);
     }
-    areSiblings(element1, element2, condition=_ => true) {
+    areSiblings(element1, element2, condition = _ => true) {
         let element1Next = this.next(element1, condition);
         let element1Prev = this.previous(element1, condition);
         return (element1Next && element1Next.isSameNode(element2)) ||
-                (element1Prev && element1Prev.isSameNode(element2));
+            (element1Prev && element1Prev.isSameNode(element2));
     }
     static levelOf(ele) {
         return parseInt(ele.getAttribute("data-level"));
@@ -207,14 +207,14 @@ class TUIList {
     isElementHiddenBy(ele, reason) {
         return ele.classList.contains("-tui-list-hidden--" + reason);
     }
-    hideElement(ele, reason, includeSub=true) {
+    hideElement(ele, reason, includeSub = true) {
         for (let e of [ele, ...this.children(ele, includeSub)]) {//TODO3
             const event = new Event("-tui-list-hidden");
             e.dispatchEvent(event);
             e.classList.add("-tui-list-hidden--" + reason);
         }
     }
-    showElement(ele, reason, includeSub=true) {
+    showElement(ele, reason, includeSub = true) {
         for (let e of [ele, ...this.children(ele, includeSub)]) {//TODO3
             const event = new Event("-tui-list-shown");
             e.dispatchEvent(event);
@@ -232,14 +232,16 @@ class TUIList {
         this.multiselect = true;
 
         // Create the callback function for passing along the 4 parameters to the real processSelect's
-        let processSelectCB = (target, evt, action, automatic=false) => {
+        let processSelectCB = (target, evt, action, automatic = false) => {
             // Set the action
             this.multiselectDragging.action = action;
-            
+
             // The event will trigger the element to call processSelect on itself
-            const event = new CustomEvent('-tui-list-internal--process-select', { detail: {
-                originalEvent: evt, action, automatic
-            } });
+            const event = new CustomEvent('-tui-list-internal--process-select', {
+                detail: {
+                    originalEvent: evt, action, automatic
+                }
+            });
             target.dispatchEvent(event);
         };
         // Ready
@@ -249,7 +251,7 @@ class TUIList {
         this.multiselectDragging = multiselectDragging;
         this.multiselect = multiselect;
     }
-    constructor(root, dataInterpret, listOptions=TUIListOptions.default()) {
+    constructor(root, dataInterpret, listOptions = TUIListOptions.default()) {
         this.dataInterpret = dataInterpret;
         dataInterpret.__setList(this);
         this.root = root;
@@ -320,15 +322,15 @@ class TUIList {
             }
             if (nextHover) {
                 nextHover.classList.add("-tui-list-hover");
-                nextHover.dispatchEvent(new KeyboardEvent("keydown", {'key': evt.key}));
+                nextHover.dispatchEvent(new KeyboardEvent("keydown", { 'key': evt.key }));
             } else if (lastHover) {
-                lastHover.dispatchEvent(new KeyboardEvent("keydown", {'key': evt.key}));
+                lastHover.dispatchEvent(new KeyboardEvent("keydown", { 'key': evt.key }));
             }
         };
         this.documentHook_keyUpKBOnly = (evt) => {
             let lastHover = this.root.querySelector(".-tui-list-hover");
             if (lastHover) {
-                lastHover.dispatchEvent(new KeyboardEvent("keyup", {'key': evt.key}));
+                lastHover.dispatchEvent(new KeyboardEvent("keyup", { 'key': evt.key }));
             }
         };
         if (listOptions.allowKBOnly) {
@@ -367,10 +369,10 @@ class TUIList {
                 e.classList.add("-tui-list-hover");
             }
         });
-        let processSelect = (element, originalEvent, action=undefined, automatic=false/*, skipInterpolate=false*/) => {
+        let processSelect = (element, originalEvent, action = undefined, automatic = false/*, skipInterpolate=false*/) => {
             // Don't do anything if element is hidden
             if (TUIList.isElementHidden(element)) return "hidden";
-            
+
             if (this.multiselect || this.kbMap["Shift"]) {
                 let noop = false;
                 let parentCheck = (action, noop) => {
@@ -384,7 +386,7 @@ class TUIList {
                         countImpact = 1;
                     else
                         countImpact = 0; //wut
-                    
+
                     let current = this.parent(element);
                     while (current !== null) {
                         // Create count if not already exists
@@ -502,7 +504,7 @@ class TUIList {
                             noop = true;
                         }
                         element.classList.remove("-tui-list-selected");
-                        
+
                         // Last-selected doesn't make sense if the user wasn't the one that initiated the select
                         if (!automatic) {
                             // // reset last-selected if we are unselecting
@@ -525,7 +527,7 @@ class TUIList {
                             noop = true;
                         }
                         element.classList.add("-tui-list-selected");
-                        
+
                         // Last-selected doesn't make sense if the user wasn't the one that initiated the select
                         if (!automatic) {
                             // set new last-selected element if we are selecting
@@ -567,70 +569,70 @@ class TUIList {
             }
         };
         // if (this.listOptions.allowMove) {
-            e.addEventListener("dragstart", (evt) => {
-                if (!this.multiselect && this.listOptions.allowMove) {
-                    let pastGhosts = document.getElementsByClassName("-tui-drag-ghost");
-                    if (pastGhosts.length > 0) {
-                        for (let g of pastGhosts) {
-                            g.parentElement.removeChild(g);
+        e.addEventListener("dragstart", (evt) => {
+            if (!this.multiselect && this.listOptions.allowMove) {
+                let pastGhosts = document.getElementsByClassName("-tui-drag-ghost");
+                if (pastGhosts.length > 0) {
+                    for (let g of pastGhosts) {
+                        g.parentElement.removeChild(g);
+                    }
+                }
+
+                let draggables = Array.from(this.root.getElementsByClassName("-tui-list-selected"));
+                if (draggables.length == 0) {
+                    draggables = [e];
+                }
+                this.draggedElements = draggables;
+
+                // let closestDraggable = evt.target;
+                // while (closestDraggable && !closestDraggable.classList.contains("-tui-list-selected")) {
+                //     closestDraggable = closestDraggable.previousElementSibling;
+                // }
+                // if (closestDraggable === null) {
+                //     closestDraggable = draggables[draggables.length-1];
+                // }
+
+                let ghost = document.createElement("div");
+                this.dataInterpret.ghostSetup(ghost);
+                ghost.classList.add("-tui-drag-ghost");
+                ghost.style.position = "fixed";
+
+                for (let i = 0; i < draggables.length; i++) {
+                    let draggableClone = draggables[i].cloneNode(true);
+                    ghost.appendChild(draggableClone);
+                    // if (closestDraggable.isSameNode(draggables[i])) {
+                    //     console.log(closestDraggable);
+                    // }
+                    if (i !== draggables.length - 1) {
+                        if (!this.areSiblings(draggables[i], draggables[i + 1])) {
+                            ghost.lastElementChild.style.marginBottom = "10px";
                         }
                     }
-
-                    let draggables = Array.from(this.root.getElementsByClassName("-tui-list-selected"));
-                    if (draggables.length == 0) {
-                        draggables = [e];
-                    }
-                    this.draggedElements = draggables;
-
-                    // let closestDraggable = evt.target;
-                    // while (closestDraggable && !closestDraggable.classList.contains("-tui-list-selected")) {
-                    //     closestDraggable = closestDraggable.previousElementSibling;
-                    // }
-                    // if (closestDraggable === null) {
-                    //     closestDraggable = draggables[draggables.length-1];
-                    // }
-
-                    let ghost = document.createElement("div");
-                    this.dataInterpret.ghostSetup(ghost);
-                    ghost.classList.add("-tui-drag-ghost");
-                    ghost.style.position = "fixed";
-
-                    for (let i = 0; i < draggables.length; i++) {
-                        let draggableClone = draggables[i].cloneNode(true);
-                        ghost.appendChild(draggableClone);
-                        // if (closestDraggable.isSameNode(draggables[i])) {
-                        //     console.log(closestDraggable);
-                        // }
-                        if (i !== draggables.length-1) {
-                            if (!this.areSiblings(draggables[i], draggables[i+1])) {
-                                ghost.lastElementChild.style.marginBottom = "10px";
-                            }
-                        }
-                    }
-
-                    document.body.appendChild(ghost);
-
-                    evt.dataTransfer.setDragImage(ghost, 0, ghost.getBoundingClientRect().height*4);
-
                 }
-            });
-            e.addEventListener("dragend", () => {
-                getRidOfOtherCursors();
-            });
-            e.addEventListener("dragover", (evt) => {
-                evt.preventDefault();
-                getRidOfOtherCursors();
-                if (evt.offsetY <= e.getBoundingClientRect().height / 2) {
-                    e.setAttribute("data-drag-relation", "above");
-                } else {
-                    e.setAttribute("data-drag-relation", "below");
-                }
-            });
-            e.addEventListener("dragleave", (evt) => {  });
-            e.addEventListener("drop", (evt) => {
-                this.dataInterpret.handleDrop(this.draggedElements, e, e.getAttribute("data-drag-relation"));
-                e.removeAttribute("data-drag-relation");
-            });
+
+                document.body.appendChild(ghost);
+
+                evt.dataTransfer.setDragImage(ghost, 0, ghost.getBoundingClientRect().height * 4);
+
+            }
+        });
+        e.addEventListener("dragend", () => {
+            getRidOfOtherCursors();
+        });
+        e.addEventListener("dragover", (evt) => {
+            evt.preventDefault();
+            getRidOfOtherCursors();
+            if (evt.offsetY <= e.getBoundingClientRect().height / 2) {
+                e.setAttribute("data-drag-relation", "above");
+            } else {
+                e.setAttribute("data-drag-relation", "below");
+            }
+        });
+        e.addEventListener("dragleave", (evt) => { });
+        e.addEventListener("drop", (evt) => {
+            this.dataInterpret.handleDrop(this.draggedElements, e, e.getAttribute("data-drag-relation"));
+            e.removeAttribute("data-drag-relation");
+        });
 
         let startMultiselect = (e, evt) => {
             this.multiselectDragging = true;
@@ -787,7 +789,7 @@ class TUISessionView extends TUIListView {
      * Also, insert any event listeners here to listen for new items that need to be inserted, use `put` to insert
      * @param {TSession} sess 
      */
-    constructor(root, sess, dataInterpret, listOptions=TUIListOptions.default(), hookPos=true) {
+    constructor(root, sess, dataInterpret, listOptions = TUIListOptions.default(), hookPos = true) {
         listOptions.kbonly(true, [0]); // Make window entries unnavigable by keyboard
         super(root, dataInterpret, listOptions);
 
@@ -848,7 +850,7 @@ class TUISessionView extends TUIListView {
     /**
      * Filter list based on search results (undefined to reset)
      */
-    filter(key, results=undefined) {
+    filter(key, results = undefined) {
         console.log(results);
         if (results === undefined) {
             for (let c of this.root.children) {
@@ -880,10 +882,10 @@ class TUISessionView extends TUIListView {
                     } else {
                         if (TUISessionView.search(tab.url, key) ||
                             TUISessionView.search(tab.title, key)) {
-                                this.showElement(tabMap[tabId], "filter");
-                            } else {
-                                this.hideElement(tabMap[tabId], "filter");
-                            }
+                            this.showElement(tabMap[tabId], "filter");
+                        } else {
+                            this.hideElement(tabMap[tabId], "filter");
+                        }
                     }
                     delete tabMap[tabId];
                 }
@@ -893,10 +895,10 @@ class TUISessionView extends TUIListView {
                     let tab = this.sess.getTab(parseInt(tabId));
                     if (TUISessionView.search(tab.url, key) ||
                         TUISessionView.search(tab.title, key)) {
-                            this.showElement(tabMap[tabId], "filter");
-                        } else {
-                            this.hideElement(tabMap[tabId], "filter");
-                        }
+                        this.showElement(tabMap[tabId], "filter");
+                    } else {
+                        this.hideElement(tabMap[tabId], "filter");
+                    }
                 }
             }
         }
@@ -978,7 +980,7 @@ class TUISessionView extends TUIListView {
      * Resort the view completely, as well as any heavy operations concerning going through the entire list,
      *  in order to fix the list's order
      */
-    resort() {  }
+    resort() { }
     /**
      * A new item is inserted into the list, or an existing item is modified so that its position should now be different
      */
@@ -1019,14 +1021,14 @@ class TUISessionView extends TUIListView {
         this.listOptions.off("change", this.listOptionsHook_change);
         return this.root;
     }
-    createTab(tab, list, hook=true, hookPos=true) { //TODO: The "list" parameter is no longer necessary since it's not static anymore
+    createTab(tab, list, hook = true, hookPos = true) { //TODO: The "list" parameter is no longer necessary since it's not static anymore
         let e = list.create(1, tab);
-    
+
         // Hook the tab up with its respective TTab object
         if (hook) {
             tab.proxy((prop, value) => {
                 console.log("Tab " + tab.id + "'s property " + prop + " has been set to '" + value + "'")
-    
+
                 if (prop === "#position" && hookPos) {
                     let after = list.root.querySelector(`.window-entry[data-window-id="${value.newWindowId}"]`);
                     // after.parentElement.removeChild(e); // insertBefore will automatically move the element, so no need to manually remove here. However, this also means that the original tab will interfere with the following calculations, which will take that into account.
@@ -1149,7 +1151,7 @@ class TUISessionView extends TUIListView {
     /**
      * Scrolls into view and selects the current tab
      */
-    scrollCurrentIntoView(evt, select=true, scrollIntoViewOptions={ behavior: 'smooth', block: 'center' }) {
+    scrollCurrentIntoView(evt, select = true, scrollIntoViewOptions = { behavior: 'smooth', block: 'center' }) {
         let current = this.root.querySelector(".tab-list .window-entry[data-current] ~ .tab-entry[data-current]");
         if (current) {
             if (select && TUIList.isElementVisible(current)) {
@@ -1180,7 +1182,7 @@ class TUISessionNoWindowsView extends TUISessionView {
  *  for the tabs. Base class for various sorted views
  */
 class TUISessionNoWindowsPosHooklessView extends TUISessionNoWindowsView {
-    constructor(root, sess, dataInterpret, listOptions=TUIListOptions.default()) {
+    constructor(root, sess, dataInterpret, listOptions = TUIListOptions.default()) {
         super(root, sess, dataInterpret, listOptions, false);
     }
 }
@@ -1234,15 +1236,15 @@ class SearchDiv extends TUIEditableDiv {
         }, resolveDefault("option:dont-clear-search"));
         // this._offset = 0;
     }
-    reconstructQuery(query, last=false) {
+    reconstructQuery(query, last = false) {
         switch (query.t) {
             case "ALL":
                 let result = "";
                 for (let i = 0; i < query.children.length; i++) {
-                    result += this.reconstructQuery(query.children[i], i == query.children.length-1);
+                    result += this.reconstructQuery(query.children[i], i == query.children.length - 1);
                 }
                 return result;
-            break;
+                break;
             case "SENTENCE":
                 if (last) {
                     return query.originalString;
@@ -1250,13 +1252,13 @@ class SearchDiv extends TUIEditableDiv {
                     this._offset += query.adjustedString.length - query.originalString.length;
                     return query.adjustedString;
                 }
-            break;
+                break;
             case "REGEX":
                 return query.originalString;
-            break;
+                break;
             case "NOOP":
                 return query.originalString;
-            break;
+                break;
         }
     }
     async onInput(value) {
@@ -1281,8 +1283,8 @@ class SearchDiv extends TUIEditableDiv {
             if (lastHover) lastHover.classList.remove("-tui-list-hover");
             if (first) {
                 first.classList.add("-tui-list-hover");
-                first.dispatchEvent(new KeyboardEvent("keydown", {'key': "ArrowDown"}));
-                first.dispatchEvent(new KeyboardEvent("keyup", {'key': "ArrowDown"}));
+                first.dispatchEvent(new KeyboardEvent("keydown", { 'key': "ArrowDown" }));
+                first.dispatchEvent(new KeyboardEvent("keyup", { 'key': "ArrowDown" }));
             }
         }
     }
@@ -1293,7 +1295,7 @@ class SearchDiv extends TUIEditableDiv {
 class WindowName extends TUIEditableLabel {
     static __instances = new Map();
     static sessionListener = {
-        onTabCreated: (tab) => {  },
+        onTabCreated: (tab) => { },
         onWindowClosed: (closedWindowId) => {
             if (WindowName.__instances.has(closedWindowId)) {
                 WindowName.__instances.get(closedWindowId).cleanUp();
@@ -1301,7 +1303,7 @@ class WindowName extends TUIEditableLabel {
             }
             WindowName.recalculateOrder();
         },
-        onWindowFocusChanged: (windowId) => {  }
+        onWindowFocusChanged: (windowId) => { }
     };
     static recalculateOrder() {
         let i = 1;
@@ -1432,15 +1434,150 @@ class TUITabsList extends TUIListDataInterpret {
         this.sess = sess;
         this.details = detailsController;
         this.list = undefined;
+        this.injectGridStyles();
+    }
+    injectGridStyles() {
+        const style = document.createElement('style');
+        style.textContent = `
+            .tab-list {
+                display: grid !important;
+                grid-template-columns: repeat(auto-fill, minmax(var(--tab-size, 200px), 1fr));
+                gap: 10px;
+                padding: 10px;
+            }
+            .tab-entry {
+                display: flex !important;
+                flex-direction: column;
+                align-items: center;
+                border: 1px solid var(--theme-border-color, #ccc);
+                border-radius: 8px;
+                padding: 8px;
+                height: auto;
+                min-height: 150px;
+                position: relative;
+                background-color: var(--theme-bg-color, #fff);
+            }
+            .tab-preview-thumbnail {
+                width: 100%;
+                height: 120px;
+                object-fit: cover;
+                border-radius: 4px;
+                margin-bottom: 5px;
+                background-color: #f0f0f0;
+                border: 1px solid #eee;
+            }
+            .tab-entry .title-wrapper {
+                width: 100%;
+                text-align: center;
+                font-size: 0.9em;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                margin-top: auto;
+            }
+            .tab-entry .single-controls {
+                position: absolute;
+                top: 5px;
+                right: 5px;
+                background: rgba(0,0,0,0.5);
+                border-radius: 4px;
+                padding: 2px;
+                display: none;
+            }
+            .tab-entry:hover .single-controls {
+                display: flex;
+            }
+            .tab-entry .favicon {
+                position: absolute;
+                top: 5px;
+                left: 5px;
+                width: 16px;
+                height: 16px;
+                background: rgba(255,255,255,0.8);
+                border-radius: 50%;
+                padding: 2px;
+            }
+            #tab-size-slider-container {
+                padding: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: flex-end;
+            }
+            #tab-size-slider {
+                width: 150px;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    async _updatePreview(imgElement, tabId) {
+        try {
+            let tab = this.sess.getTab(tabId);
+            if (tab.active) {
+                let cap = await browser.runtime.sendMessage({
+                    _: "captureTab", tabId: tabId, quality: {
+                        format: "jpeg",
+                        quality: 50,
+                        scale: 0.2
+                    }
+                });
+                if (cap) {
+                    imgElement.src = cap;
+                    return;
+                }
+            }
+
+            // Fallback to favicon
+            if (tab.favIconUrl) {
+                if (!tab.favIconUrl.startsWith("chrome://")) {
+                    let base64 = await t_getImage(tab.favIconUrl);
+                    imgElement.src = base64;
+                } else {
+                    imgElement.src = tab.favIconUrl;
+                }
+                imgElement.style.objectFit = "contain";
+                imgElement.style.padding = "20px";
+            }
+        } catch (e) {
+            console.error("Failed to update preview for tab " + tabId, e);
+        }
     }
     __setList(list) {
         this.list = list;
     }
     createRoot(data) {
+        let container = document.createElement("div");
+
+        let sliderContainer = document.createElement("div");
+        sliderContainer.id = "tab-size-slider-container";
+        let sliderLabel = document.createElement("label");
+        sliderLabel.innerText = "Size: ";
+        sliderLabel.style.marginRight = "10px";
+        let slider = document.createElement("input");
+        slider.type = "range";
+        slider.id = "tab-size-slider";
+        slider.min = "100";
+        slider.max = "400";
+        slider.value = localStorage.getItem("tabbytoo-tab-size") || "200";
+
+        // Apply initial size
+        document.documentElement.style.setProperty('--tab-size', slider.value + "px");
+
+        slider.addEventListener("input", (e) => {
+            const size = e.target.value;
+            document.documentElement.style.setProperty('--tab-size', size + "px");
+            localStorage.setItem("tabbytoo-tab-size", size);
+        });
+
+        sliderContainer.appendChild(sliderLabel);
+        sliderContainer.appendChild(slider);
+        container.appendChild(sliderContainer);
+
         let list = document.createElement("ul");
         list.id = "tab-list";
         list.classList.add("tab-list");
-        document.querySelector("#session-display-pane > #where-to-put-the-tab-list").appendChild(list);
+        container.appendChild(list);
+
+        document.querySelector("#session-display-pane > #where-to-put-the-tab-list").appendChild(container);
         return list;
     }
     createElement(level, data) {
@@ -1451,7 +1588,7 @@ class TUITabsList extends TUIListDataInterpret {
             if (data.incognito) entry.classList.add("incognito");
             entry.setAttribute("data-window-id", data.id);
             if (this.sess._rel.getFocusedWindow() === data.id) entry.setAttribute("data-current", "true");
-            
+
             let tmp = document.createElement("span");
             tmp.className = "single-controls";
             let tmp1 = document.createElement("span");
@@ -1481,7 +1618,7 @@ class TUITabsList extends TUIListDataInterpret {
             if (data.incognito) entry.classList.add("incognito");
             entry.setAttribute("data-tab-id", data.id);
             if (data.active) entry.setAttribute("data-current", "");
-            
+
             let tmp;
             tmp = document.createElement("div");
             tmp.className = "last-selected-indicator";
@@ -1498,6 +1635,12 @@ class TUITabsList extends TUIListDataInterpret {
                 if (v) ciElement.style = "--contextual-identity-color: " + v.colorCode + ";";
             });
             entry.appendChild(tmp);
+
+            let previewImg = document.createElement("img");
+            previewImg.className = "tab-preview-thumbnail";
+            // previewImg.src = "icons/tabbytoo-32.png"; // Placeholder
+            entry.appendChild(previewImg);
+            this._updatePreview(previewImg, data.id);
 
             tmp = document.createElement("img");
             tmp.className = "favicon";
@@ -1564,7 +1707,7 @@ class TUITabsList extends TUIListDataInterpret {
             if (evt["type"] && evt["type"] === "contextmenu") {
                 let moveTabs, unload, reload;
                 openContextMenu(evt, new TUIMenu(
-                    moveTabs = new TUISubMenu(() => {}, (selection) => {
+                    moveTabs = new TUISubMenu(() => { }, (selection) => {
                         if (selection.data.windowId !== undefined) {
                             actions.moveTo(selection.data.windowId, -1);
                         } else {
@@ -1579,10 +1722,10 @@ class TUITabsList extends TUIListDataInterpret {
                         return new TUIMenuItem(WindowName.getInstance(windowId).displayedValue, "", undefined, undefined, {
                             windowId
                         });
-                    }), new TUIMenuHR(), new TUIMenuItem("A New Window", "", undefined, undefined, {  })], false, "Move Tab(s) to...", ""),
+                    }), new TUIMenuHR(), new TUIMenuItem("A New Window", "", undefined, undefined, {})], false, "Move Tab(s) to...", ""),
                     unload = new TUIMenuItem("Unload", ""),
                     reload = new TUIMenuItem("Reload", "../icons/refresh.svg")
-                ).callback(() => {}, (state) => {
+                ).callback(() => { }, (state) => {
                     if (state.target === unload) {
                         actions.discard();
                     } else if (state.target === reload) {
@@ -1611,7 +1754,7 @@ class TUITabsList extends TUIListDataInterpret {
                 let nameWindow;
                 openContextMenu(evt, new TUIMenu(
                     nameWindow = new TUIMenuItem("Rename", "../icons/rename.svg")
-                ).callback(() => {}, (state) => {
+                ).callback(() => { }, (state) => {
                     if (state.target === nameWindow) {
                         let windowName = WindowName.getInstance(windowId);
                         if (windowName) {
@@ -1635,13 +1778,13 @@ class TUITabsList extends TUIListDataInterpret {
             }
         }
         if (tabId !== undefined) {
-            await callContentScript(tabId, "focusd", {action: "checkPrevious"});
+            await callContentScript(tabId, "focusd", { action: "checkPrevious" });
             let passthroughListener = (data, sender) => {
                 if (data["_"] !== "initialKeyEventsPassthrough") return;
                 console.log(`event passthrough from tab ${sender.tab.id} on listener for tab ${tabId}`, data);
                 if (sender.tab.id !== tabId) return;
                 if (data.type === "keydown" || data.type === "keyup") {
-                    document.dispatchEvent(new KeyboardEvent(data["type"], {key: data["key"]}));
+                    document.dispatchEvent(new KeyboardEvent(data["type"], { key: data["key"] }));
                 } else if (data.type === "passthroughover") {
                     browser.runtime.onMessage.removeListener(passthroughListener);
                 }
@@ -1679,7 +1822,7 @@ class TUITabsList extends TUIListDataInterpret {
     handleDrop(elements, dropTarget, relation) {
         //let elementsClone = Array.from(elements);
         let toMove = elements.filter(ele => ele.classList.contains("tab-entry")).map(ele => parseInt(ele.getAttribute("data-tab-id")));
-        
+
         if (dropTarget.classList.contains("window-entry")) {
             let targetWindowId = parseInt(dropTarget.getAttribute("data-window-id"));
             TTabActions.move(toMove, targetWindowId, -1);
@@ -1717,10 +1860,10 @@ class TUITabsList extends TUIListDataInterpret {
             //             let moveChunkAfter = moveAfter;
             //             if (nextMove === undefined) return;
             //             let tabInformation = this.sess.getTab(nextMove);
-                        
+
             //             while (nextMove !== undefined && tabInformation.windowId !== targetWindowId) {
             //                 canMoveWithoutCalc.push(nextMove);
-                            
+
             //                 moveAfter = nextMove;
             //                 nextMove = toMove.shift();
             //                 nextMoveElement = elementsClone.shift();
@@ -1812,7 +1955,7 @@ class TUITabsList extends TUIListDataInterpret {
             //             let canMoveWithoutCalc = [];
             //             while (nextMove !== undefined && tabInformation.windowId !== targetWindowId) {
             //                 canMoveWithoutCalc.push(nextMove);
-    
+
             //                 moveAfter = nextMove;
             //                 nextMove = toMove.shift();
             //                 if (nextMove) tabInformation = this.sess.getTab(nextMove);
@@ -1868,8 +2011,6 @@ class TUITabsList extends TUIListDataInterpret {
 
 
 
-            
-            
 
 
 
@@ -1878,7 +2019,9 @@ class TUITabsList extends TUIListDataInterpret {
 
 
 
-            
+
+
+
             let targetWindowId = this.sess.getTab(parseInt(dropTarget.getAttribute("data-tab-id"))).windowId;
             let movingDownwards = () => {
                 let ele = undefined;
@@ -1904,7 +2047,7 @@ class TUITabsList extends TUIListDataInterpret {
             if (relation === "below") pos++;
             if (this.list && relation === "below") {
                 let targetWindowElementChildren = this.list.children(targetWindowElement, false);
-                if (dropTarget.isSameNode(targetWindowElementChildren[targetWindowElementChildren.length-1])) {
+                if (dropTarget.isSameNode(targetWindowElementChildren[targetWindowElementChildren.length - 1])) {
                     pos = -1;
                 }
             }
@@ -2129,7 +2272,7 @@ class TUITabsList extends TUIListDataInterpret {
             }
         }, resolveDefault("option:separate-save"));
     });
-    let saveForLaterRunner = async (evt, local=true, sync=true) => {
+    let saveForLaterRunner = async (evt, local = true, sync = true) => {
         saveForLater.setAttribute("data-disabled", "");
         let done = () => {
             saveForLater.removeAttribute("data-disabled");
@@ -2146,7 +2289,7 @@ class TUITabsList extends TUIListDataInterpret {
         save.mozContextualIdentities = LZString.compressToUTF16(JSON.stringify(save.mozContextualIdentities));
         save.rel = JSON.stringify(save.rel);
         save.tabs = LZString.compressToUTF16(JSON.stringify(save.tabs));
-        
+
         if (local) {
             await $local$.set("sflv1_timestamp", timestamp);
             await $local$.set("sflv1_mozContextualIdentities", save.mozContextualIdentities);
@@ -2168,7 +2311,7 @@ class TUITabsList extends TUIListDataInterpret {
             let errorLabel;
             openContextMenu(evt, new TUIMenu(
                 errorLabel = new TUIMenuLabel("The session was too large to be stored on the browser's sync storage. It's still saved locally though", "../icons/cancel.svg", "scale(0.8) translateY(1.5%) translateX(-7%)")
-            ).callback(_ => {}, _ => {
+            ).callback(_ => { }, _ => {
                 done();
             }).make());
         }
@@ -2257,7 +2400,7 @@ class TUITabsList extends TUIListDataInterpret {
                 map[ci.cookieStoreId] = undefined;
             }
         }
-        
+
         let rect = restoreNow.getBoundingClientRect();
         let actions;
         let ok;
@@ -2298,7 +2441,7 @@ class TUITabsList extends TUIListDataInterpret {
                 mainLabel = new TUIMenuLabel("These containers were unable to be located: "),
                 hr = new TUIMenuHR(),
                 new TUIMenuListLayout(
-                    ...Object.entries(map).filter(([key, value]) => value === undefined).map(([key, value]) => 
+                    ...Object.entries(map).filter(([key, value]) => value === undefined).map(([key, value]) =>
                         new TUIMenuFlexLayout(
                             new TUIMenuLabel(savedCIIdMap[key].name, savedCIIdMap[key].iconUrl, undefined, undefined, {
                                 colorCode: savedCIIdMap[key].colorCode

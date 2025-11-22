@@ -30,8 +30,8 @@ browser.runtime.onInstalled.addListener(({ reason }) => {
 
 // Setup "Send Tab to..."
 browser.contextMenus.onClicked.addListener(async (info, tab) => {
-    if (info.menuItemId.startsWith("tabby-send-tab-to-")) {
-        let moveTo = info.menuItemId.replace("tabby-send-tab-to-", "");
+    if (info.menuItemId.startsWith("tabbytoo-send-tab-to-")) {
+        let moveTo = info.menuItemId.replace("tabbytoo-send-tab-to-", "");
         let highlightedTabIds = (await browser.tabs.query({ highlighted: true })).map(tab => tab.id);
         let tabIds = [tab.id];
         if (highlightedTabIds.includes(tab.id)) {
@@ -58,7 +58,7 @@ let updateContextMenu = async () => {
     let contexts = ["audio", "editable", "frame", "image", "link", "page", "selection", "video"];
     if (TargetBrowser === "firefox") contexts.push("tab");
     await browser.contextMenus.create({
-        id: "tabby-send-tab-to-",
+        id: "tabbytoo-send-tab-to-",
         title: "Send Tab to...",
         contexts,
     });
@@ -70,19 +70,19 @@ let updateContextMenu = async () => {
         let windowId = windows[i].id;
         let windowName = await $localtmp$.getOne(`window${windowId}`);
         let menuId = await browser.contextMenus.create({
-            parentId: `tabby-send-tab-to-`,
-            id: `tabby-send-tab-to-${windowId}`,
+            parentId: `tabbytoo-send-tab-to-`,
+            id: `tabbytoo-send-tab-to-${windowId}`,
             title: windowName ? windowName : "Window " + (i+1)
         });
     }
     await browser.contextMenus.create({
-        parentId: "tabby-send-tab-to-",
-        id: "tabby-send-tab-to--",
+        parentId: "tabbytoo-send-tab-to-",
+        id: "tabbytoo-send-tab-to--",
         type: "separator"
     });
     await browser.contextMenus.create({
-        parentId: "tabby-send-tab-to-",
-        id: "tabby-send-tab-to-new",
+        parentId: "tabbytoo-send-tab-to-",
+        id: "tabbytoo-send-tab-to-new",
         title: "A New Window"
     });
 };
@@ -157,7 +157,7 @@ browser.runtime.onMessage.addListener((message) => {
             }
             // ---
 
-            await browser.contextMenus.update(`tabby-send-tab-to-${windowId}`, {
+            await browser.contextMenus.update(`tabbytoo-send-tab-to-${windowId}`, {
                 title: optionValue ? optionValue : "Window " + (i+1)
             });
         });
