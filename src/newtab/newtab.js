@@ -1,0 +1,1862 @@
+import "Polyfill";
+import { resolveDefault } from "../options/exports";
+import { $local$ } from "../tapi/store";
+
+const root = document.getElementById("app");
+const NEWTAB_URL = browser.runtime.getURL("newtab/newtab.html");
+const CARD_PREVIEW_RATIO = "56.25%";
+const PREVIEW_QUALITY = {
+    format: "jpeg",
+    quality: 50,
+    scale: 0.2
+};
+
+const OPTION_SHOW_PREVIEW_DETAILS = "option:newtab-show-preview-details";
+const OPTION_STICKY_CONTROLS = "option:newtab-sticky-controls";
+const OPTION_KEEP_PINNED = "option:newtab-keep-pinned";
+
+const SORT_MODES = {
+    browser: "Browser order",
+    domain: "Domain",
+    title: "Title",
+    openedNewest: "Recently opened",
+    openedOldest: "Oldest opened",
+    bookmarked: "Bookmarked first"
+};
+
+const STATUS_FILTERS = {
+    all: "All tabs",
+    bookmarked: "Bookmarked",
+    unbookmarked: "Unbookmarked",
+    pinned: "Pinned",
+    unpinned: "Unpinned",
+    discarded: "Discarded",
+    audible: "Audible"
+};
+
+let renderedTabIds = [];
+let previewCache = {};
+let tabMeta = {};
+let bookmarkState = {};
+let tabState = [];
+let dragTabId;
+
+const selectionState = {
+    active: false,
+    tabIds: new Set()
+};
+
+const viewState = {
+    search: "",
+    statusFilter: "all",
+    domainFilter: "all",
+    sortMode: "browser",
+    showPreviewDetails: resolveDefault(OPTION_SHOW_PREVIEW_DETAILS),
+    stickyControls: resolveDefault(OPTION_STICKY_CONTROLS),
+    keepPinned: resolveDefault(OPTION_KEEP_PINNED),
+    settingsOpen: false,
+    recaptureMenuOpen: false
+};
+
+async function loadDashboardSetting(optionID) {
+    let value;
+    await $local$.fulfillOnce(optionID, optionValue => {
+        value = optionValue;
+    }, resolveDefault(optionID));
+    return value;
+}
+
+async function saveDashboardSetting(optionID, value) {
+    await $local$.set(optionID, value);
+    return value;
+}
+
+async function loadDashboardSettings() {
+    let [showPreviewDetails, stickyControls, keepPinned] = await Promise.all([
+        loadDashboardSetting(OPTION_SHOW_PREVIEW_DETAILS),
+        loadDashboardSetting(OPTION_STICKY_CONTROLS),
+        loadDashboardSetting(OPTION_KEEP_PINNED)
+    ]);
+
+    viewState.showPreviewDetails = showPreviewDetails;
+    viewState.stickyControls = stickyControls;
+    viewState.keepPinned = keepPinned;
+}
+
+document.title = "Tabby New Tab";
+document.documentElement.style.colorScheme = "light";
+document.body.style.margin = "0";
+document.body.style.fontFamily = '"Segoe UI", sans-serif';
+document.body.style.background = "radial-gradient(circle at top, #f7fbff 0%, #eaf2fa 42%, #e3ebf4 100%)";
+document.body.style.color = "#17202a";
+
+const style = document.createElement("style");
+style.textContent = `
+    :root {
+        --tabby-ink: #17202a;
+        --tabby-muted: #48606f;
+        --tabby-soft: #56748f;
+        --tabby-panel: rgba(255, 255, 255, 0.82);
+        --tabby-panel-strong: rgba(255, 255, 255, 0.95);
+        --tabby-border: rgba(109, 133, 160, 0.25);
+        --tabby-accent: #135ba1;
+        --tabby-accent-soft: rgba(19, 91, 161, 0.12);
+        --tabby-shadow: 0 18px 40px rgba(23, 50, 77, 0.10);
+        --tabby-shadow-strong: 0 24px 54px rgba(23, 50, 77, 0.16);
+    }
+
+    body {
+        min-width: 320px;
+    }
+
+    .tabby-shell {
+        min-height: 100vh;
+        padding: 28px;
+        box-sizing: border-box;
+        max-width: 1560px;
+        margin: 0 auto;
+    }
+
+    .tabby-top-panel {
+        position: relative;
+        margin-bottom: 18px;
+    }
+
+    .tabby-top-panel.-sticky {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        padding-top: 14px;
+    }
+
+    .tabby-top-panel-inner {
+        border-radius: 28px;
+        padding: 18px 18px 14px;
+        background: linear-gradient(180deg, rgba(247, 251, 255, 0.95), rgba(233, 242, 250, 0.92));
+        border: 1px solid rgba(109, 133, 160, 0.20);
+        box-shadow: var(--tabby-shadow);
+        backdrop-filter: blur(18px);
+    }
+
+    .tabby-hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 18px;
+        margin-bottom: 18px;
+    }
+
+    .tabby-hero-copy {
+        max-width: 820px;
+    }
+
+    .tabby-eyebrow {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: var(--tabby-soft);
+        margin-bottom: 8px;
+    }
+
+    .tabby-heading {
+        margin: 0 0 8px;
+        font-size: clamp(34px, 4vw, 48px);
+        line-height: 1.02;
+    }
+
+    .tabby-subheading {
+        margin: 0;
+        line-height: 1.55;
+        color: var(--tabby-muted);
+    }
+
+    .tabby-hero-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
+        position: relative;
+    }
+
+    .tabby-button,
+    .tabby-select,
+    .tabby-search,
+    .tabby-settings-close {
+        border-radius: 14px;
+        border: 1px solid var(--tabby-border);
+        background: var(--tabby-panel-strong);
+        color: var(--tabby-ink);
+        box-shadow: var(--tabby-shadow);
+    }
+
+    .tabby-button,
+    .tabby-settings-close {
+        padding: 12px 16px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .tabby-button {
+        background: #17324d;
+        border: none;
+        color: #f8fbff;
+    }
+
+    .tabby-button.-secondary,
+    .tabby-settings-close {
+        background: rgba(255, 255, 255, 0.92);
+        color: var(--tabby-ink);
+        border: 1px solid var(--tabby-border);
+    }
+
+    .tabby-button.-icon {
+        min-width: 48px;
+        padding-inline: 14px;
+        font-size: 19px;
+        line-height: 1;
+    }
+
+    .tabby-button.-disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .tabby-inline-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        border-radius: 999px;
+        padding: 10px 14px;
+        background: rgba(255, 255, 255, 0.92);
+        border: 1px solid var(--tabby-border);
+        box-shadow: var(--tabby-shadow);
+        color: var(--tabby-ink);
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .tabby-inline-toggle input,
+    .tabby-switch input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .tabby-toggle-track {
+        position: relative;
+        width: 42px;
+        height: 24px;
+        border-radius: 999px;
+        background: rgba(86, 116, 143, 0.24);
+        transition: background 120ms ease;
+        flex-shrink: 0;
+    }
+
+    .tabby-toggle-track::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        background: #ffffff;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+        transition: transform 120ms ease;
+    }
+
+    .tabby-inline-toggle input:checked + .tabby-toggle-track,
+    .tabby-switch input:checked + .tabby-toggle-track {
+        background: var(--tabby-accent);
+    }
+
+    .tabby-inline-toggle input:checked + .tabby-toggle-track::after,
+    .tabby-switch input:checked + .tabby-toggle-track::after {
+        transform: translateX(18px);
+    }
+
+    .tabby-toolbar {
+        display: grid;
+        grid-template-columns: minmax(220px, 1.5fr) repeat(3, minmax(150px, 0.65fr));
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+
+    .tabby-search,
+    .tabby-select {
+        width: 100%;
+        padding: 12px 14px;
+        box-sizing: border-box;
+        font: inherit;
+    }
+
+    .tabby-meta-bar,
+    .tabby-selection-bar {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+        color: var(--tabby-muted);
+        flex-wrap: wrap;
+    }
+
+    .tabby-selection-bar {
+        margin-bottom: 12px;
+        padding: 12px 14px;
+        border-radius: 18px;
+        background: rgba(19, 91, 161, 0.08);
+        border: 1px solid rgba(19, 91, 161, 0.16);
+    }
+
+    .tabby-selection-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .tabby-status,
+    .tabby-hint,
+    .tabby-selection-copy {
+        margin: 0;
+    }
+
+    .tabby-hint {
+        font-size: 13px;
+    }
+
+    .tabby-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+        gap: 16px;
+    }
+
+    .tabby-card {
+        border-radius: 24px;
+        border: 1px solid var(--tabby-border);
+        background: var(--tabby-panel);
+        box-shadow: var(--tabby-shadow);
+        overflow: hidden;
+        backdrop-filter: blur(12px);
+        transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+        position: relative;
+    }
+
+    .tabby-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--tabby-shadow-strong);
+    }
+
+    .tabby-card.-preview-only .tabby-card-main {
+        padding: 0;
+    }
+
+    .tabby-card.-preview-only .tabby-preview {
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .tabby-card.-selection-mode {
+        cursor: pointer;
+    }
+
+    .tabby-card.-selected {
+        border-color: rgba(19, 91, 161, 0.55);
+        box-shadow: 0 0 0 3px rgba(19, 91, 161, 0.15), var(--tabby-shadow-strong);
+    }
+
+    .tabby-card.-active-drop-before::before,
+    .tabby-card.-active-drop-after::after {
+        content: "";
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        height: 4px;
+        border-radius: 999px;
+        background: var(--tabby-accent);
+        z-index: 2;
+    }
+
+    .tabby-card.-active-drop-before::before {
+        top: 8px;
+    }
+
+    .tabby-card.-active-drop-after::after {
+        bottom: 8px;
+    }
+
+    .tabby-card.-dragging {
+        opacity: 0.5;
+    }
+
+    .tabby-card-main {
+        width: 100%;
+        border: none;
+        background: transparent;
+        padding: 14px;
+        cursor: pointer;
+        text-align: left;
+        display: block;
+    }
+
+    .tabby-preview {
+        position: relative;
+        padding-top: ${CARD_PREVIEW_RATIO};
+        border-radius: 18px;
+        overflow: hidden;
+        background: linear-gradient(145deg, #d9e5f2 0%, #eef4fb 100%);
+        box-shadow: inset 0 0 0 1px rgba(98, 126, 156, 0.16);
+    }
+
+    .tabby-preview img,
+    .tabby-preview .tabby-placeholder {
+        position: absolute;
+        inset: 0;
+    }
+
+    .tabby-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .tabby-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        text-align: center;
+        color: #36506a;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.48) 0%, rgba(214, 226, 239, 0.70) 100%);
+    }
+
+    .tabby-selection-chip {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        border-radius: 999px;
+        padding: 7px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.92);
+        color: var(--tabby-ink);
+        box-shadow: 0 8px 18px rgba(23, 50, 77, 0.18);
+        pointer-events: none;
+    }
+
+    .tabby-selection-chip.-selected {
+        background: rgba(19, 91, 161, 0.92);
+        color: #f8fbff;
+    }
+
+    .tabby-meta-row {
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin: 14px 2px 10px;
+    }
+
+    .tabby-card-url-meta {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        color: var(--tabby-soft);
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .tabby-title {
+        font-weight: 700;
+        line-height: 1.35;
+        color: var(--tabby-ink);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .tabby-pill {
+        flex-shrink: 0;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #36506a;
+        background: rgba(54, 80, 106, 0.09);
+    }
+
+    .tabby-badges {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 0 0 6px;
+    }
+
+    .tabby-badge {
+        border-radius: 999px;
+        padding: 5px 9px;
+        font-size: 11px;
+        font-weight: 700;
+        background: rgba(54, 80, 106, 0.08);
+        color: #36506a;
+    }
+
+    .tabby-badge.-accent {
+        background: var(--tabby-accent-soft);
+        color: var(--tabby-accent);
+    }
+
+    .tabby-action-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 0 14px 14px;
+    }
+
+    .tabby-action {
+        border: 1px solid var(--tabby-border);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.94);
+        color: var(--tabby-ink);
+        padding: 8px 11px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .tabby-empty {
+        border-radius: 24px;
+        padding: 30px;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.65);
+        border: 1px dashed rgba(109, 133, 160, 0.45);
+        color: var(--tabby-muted);
+    }
+
+    .tabby-mini-panel {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        min-width: 250px;
+        border-radius: 18px;
+        border: 1px solid var(--tabby-border);
+        background: rgba(255, 255, 255, 0.98);
+        box-shadow: var(--tabby-shadow-strong);
+        padding: 10px;
+        display: none;
+        z-index: 35;
+    }
+
+    .tabby-mini-panel.-open {
+        display: grid;
+        gap: 8px;
+    }
+
+    .tabby-mini-panel button {
+        width: 100%;
+        text-align: left;
+    }
+
+    .tabby-settings-scrim {
+        position: fixed;
+        inset: 0;
+        background: rgba(13, 27, 45, 0.28);
+        backdrop-filter: blur(8px);
+        display: none;
+        z-index: 40;
+    }
+
+    .tabby-settings-scrim.-open {
+        display: block;
+    }
+
+    .tabby-settings-panel {
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        width: min(430px, calc(100vw - 32px));
+        max-height: calc(100vh - 48px);
+        overflow: auto;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.98);
+        border: 1px solid rgba(109, 133, 160, 0.22);
+        box-shadow: var(--tabby-shadow-strong);
+        padding: 20px;
+        display: none;
+        z-index: 41;
+    }
+
+    .tabby-settings-panel.-open {
+        display: block;
+    }
+
+    .tabby-settings-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+
+    .tabby-settings-title {
+        margin: 0;
+        font-size: 20px;
+    }
+
+    .tabby-settings-section + .tabby-settings-section {
+        margin-top: 18px;
+        padding-top: 18px;
+        border-top: 1px solid rgba(109, 133, 160, 0.18);
+    }
+
+    .tabby-settings-section h3 {
+        margin: 0 0 10px;
+        font-size: 15px;
+    }
+
+    .tabby-settings-copy,
+    .tabby-settings-list {
+        margin: 0;
+        color: var(--tabby-muted);
+        line-height: 1.55;
+    }
+
+    .tabby-settings-list {
+        padding-left: 18px;
+    }
+
+    .tabby-setting-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: flex-start;
+        padding: 12px 0;
+    }
+
+    .tabby-setting-copy strong {
+        display: block;
+        margin-bottom: 4px;
+    }
+
+    .tabby-setting-copy span {
+        color: var(--tabby-muted);
+        line-height: 1.45;
+    }
+
+    .tabby-switch {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        margin-top: 4px;
+    }
+
+    @media (max-width: 980px) {
+        .tabby-hero {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .tabby-hero-actions {
+            justify-content: flex-start;
+        }
+
+        .tabby-toolbar {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+
+    @media (max-width: 720px) {
+        .tabby-shell {
+            padding: 18px;
+        }
+
+        .tabby-top-panel.-sticky {
+            top: 0;
+            padding-top: 10px;
+        }
+
+        .tabby-top-panel-inner {
+            padding: 14px;
+        }
+
+        .tabby-toolbar {
+            grid-template-columns: 1fr;
+        }
+
+        .tabby-settings-panel {
+            top: 16px;
+            right: 16px;
+            width: calc(100vw - 32px);
+            max-height: calc(100vh - 32px);
+        }
+    }
+`;
+document.head.appendChild(style);
+
+const shell = document.createElement("main");
+shell.className = "tabby-shell";
+
+const topPanel = document.createElement("section");
+topPanel.className = "tabby-top-panel";
+
+const topPanelInner = document.createElement("div");
+topPanelInner.className = "tabby-top-panel-inner";
+
+const hero = document.createElement("section");
+hero.className = "tabby-hero";
+hero.title = "Tabby keeps capture, filter, sort, recapture, and settings controls here so they stay easy to reach.";
+
+const heroCopy = document.createElement("div");
+heroCopy.className = "tabby-hero-copy";
+
+const eyebrow = document.createElement("div");
+eyebrow.textContent = "TABBY NEW TAB";
+eyebrow.className = "tabby-eyebrow";
+eyebrow.title = "This dashboard represents the other tabs in the current window.";
+
+const heading = document.createElement("h1");
+heading.textContent = "Control the rest of this window.";
+heading.className = "tabby-heading";
+heading.title = "Use the dashboard to switch tabs, manage them directly, and keep previews current.";
+
+const subheading = document.createElement("p");
+subheading.textContent = "Close tabs, pin them, reload pages, switch between compact and detailed cards, filter the window, or drag cards to reorder real browser tabs without leaving the dashboard.";
+subheading.className = "tabby-subheading";
+subheading.title = "Most actions happen directly from the dashboard cards; settings and preview capture tools live on the right.";
+
+const heroActions = document.createElement("div");
+heroActions.className = "tabby-hero-actions";
+
+const detailsToggleLabel = document.createElement("label");
+detailsToggleLabel.className = "tabby-inline-toggle";
+detailsToggleLabel.title = "Toggle between screenshot-only cards and full preview details with metadata and action buttons.";
+
+const detailsToggleInput = document.createElement("input");
+detailsToggleInput.type = "checkbox";
+
+const detailsToggleTrack = document.createElement("span");
+detailsToggleTrack.className = "tabby-toggle-track";
+
+const detailsToggleText = document.createElement("span");
+detailsToggleText.textContent = "Show preview details";
+
+detailsToggleLabel.appendChild(detailsToggleInput);
+detailsToggleLabel.appendChild(detailsToggleTrack);
+detailsToggleLabel.appendChild(detailsToggleText);
+
+const recaptureButton = document.createElement("button");
+recaptureButton.type = "button";
+recaptureButton.className = "tabby-button";
+recaptureButton.textContent = "Recapture previews";
+recaptureButton.title = "Choose whether to recapture all visible previews now or enter selection mode to pick specific previews.";
+
+const recaptureMenu = document.createElement("div");
+recaptureMenu.className = "tabby-mini-panel";
+
+const recaptureAllButton = document.createElement("button");
+recaptureAllButton.type = "button";
+recaptureAllButton.className = "tabby-button -secondary";
+recaptureAllButton.textContent = "Capture all visible";
+recaptureAllButton.title = "Force a fresh screenshot for every currently visible, non-discarded card.";
+
+const recaptureSelectedModeButton = document.createElement("button");
+recaptureSelectedModeButton.type = "button";
+recaptureSelectedModeButton.className = "tabby-button -secondary";
+recaptureSelectedModeButton.textContent = "Choose previews";
+recaptureSelectedModeButton.title = "Enter selection mode, click the previews you want, then confirm the recapture.";
+
+recaptureMenu.appendChild(recaptureAllButton);
+recaptureMenu.appendChild(recaptureSelectedModeButton);
+
+const resetFiltersButton = document.createElement("button");
+resetFiltersButton.type = "button";
+resetFiltersButton.className = "tabby-button -secondary";
+resetFiltersButton.textContent = "Reset filters";
+resetFiltersButton.title = "Clear search, filters, and sort mode and return to the default browser-order view.";
+
+const settingsButton = document.createElement("button");
+settingsButton.type = "button";
+settingsButton.className = "tabby-button -secondary -icon";
+settingsButton.textContent = "⚙";
+settingsButton.setAttribute("aria-label", "Open dashboard settings");
+settingsButton.title = "Open dashboard settings, quick guidance, and persistent display options.";
+
+heroCopy.appendChild(eyebrow);
+heroCopy.appendChild(heading);
+heroCopy.appendChild(subheading);
+hero.appendChild(heroCopy);
+heroActions.appendChild(detailsToggleLabel);
+heroActions.appendChild(recaptureButton);
+heroActions.appendChild(recaptureMenu);
+heroActions.appendChild(resetFiltersButton);
+heroActions.appendChild(settingsButton);
+hero.appendChild(heroActions);
+
+const controls = document.createElement("section");
+controls.className = "tabby-toolbar";
+controls.title = "Search, filter, and sort the current window without changing the underlying tab set.";
+
+const searchInput = document.createElement("input");
+searchInput.className = "tabby-search";
+searchInput.type = "search";
+searchInput.placeholder = "Filter by title, URL, or domain";
+searchInput.title = "Search across tab titles, full URLs, and domain names in the current window.";
+
+const statusFilter = document.createElement("select");
+statusFilter.className = "tabby-select";
+statusFilter.title = "Filter the current window by bookmark state, pin state, discarded tabs, or audible tabs.";
+
+const domainFilter = document.createElement("select");
+domainFilter.className = "tabby-select";
+domainFilter.title = "Filter the current window down to a single hostname while keeping sort and actions available.";
+
+const sortSelect = document.createElement("select");
+sortSelect.className = "tabby-select";
+sortSelect.title = "Change how cards are ordered. Drag-and-drop only works in Browser order.";
+
+for (let [value, label] of Object.entries(STATUS_FILTERS)) {
+    let option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    statusFilter.appendChild(option);
+}
+
+for (let [value, label] of Object.entries(SORT_MODES)) {
+    let option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    sortSelect.appendChild(option);
+}
+
+controls.appendChild(searchInput);
+controls.appendChild(statusFilter);
+controls.appendChild(domainFilter);
+controls.appendChild(sortSelect);
+
+const selectionBar = document.createElement("section");
+selectionBar.className = "tabby-selection-bar";
+
+const selectionCopy = document.createElement("p");
+selectionCopy.className = "tabby-selection-copy";
+selectionCopy.title = "Selection mode repurposes card clicks so you can choose exactly which previews to recapture.";
+
+const selectionActions = document.createElement("div");
+selectionActions.className = "tabby-selection-actions";
+
+const selectionConfirmButton = document.createElement("button");
+selectionConfirmButton.type = "button";
+selectionConfirmButton.className = "tabby-button";
+selectionConfirmButton.textContent = "Recapture selected";
+selectionConfirmButton.title = "Capture only the previews currently selected in selection mode.";
+
+const selectionCancelButton = document.createElement("button");
+selectionCancelButton.type = "button";
+selectionCancelButton.className = "tabby-button -secondary";
+selectionCancelButton.textContent = "Cancel selection";
+selectionCancelButton.title = "Exit selection mode and return card clicks to normal tab activation.";
+
+selectionActions.appendChild(selectionConfirmButton);
+selectionActions.appendChild(selectionCancelButton);
+selectionBar.appendChild(selectionCopy);
+selectionBar.appendChild(selectionActions);
+
+const metaBar = document.createElement("section");
+metaBar.className = "tabby-meta-bar";
+
+const status = document.createElement("p");
+status.textContent = "Loading tabs...";
+status.className = "tabby-status";
+status.title = "The status line summarizes how many cards are visible and what the dashboard is doing now.";
+
+const hint = document.createElement("p");
+hint.className = "tabby-hint";
+hint.title = "Hints change based on the current mode, including drag-and-drop limits and selection mode.";
+
+const list = document.createElement("div");
+list.className = "tabby-grid";
+
+const settingsScrim = document.createElement("div");
+settingsScrim.className = "tabby-settings-scrim";
+
+const settingsPanel = document.createElement("aside");
+settingsPanel.className = "tabby-settings-panel";
+settingsPanel.setAttribute("aria-hidden", "true");
+
+const settingsHeader = document.createElement("div");
+settingsHeader.className = "tabby-settings-header";
+
+const settingsTitle = document.createElement("h2");
+settingsTitle.className = "tabby-settings-title";
+settingsTitle.textContent = "Dashboard settings";
+
+const settingsCloseButton = document.createElement("button");
+settingsCloseButton.type = "button";
+settingsCloseButton.className = "tabby-settings-close";
+settingsCloseButton.textContent = "Close";
+settingsCloseButton.title = "Close the settings panel.";
+
+settingsHeader.appendChild(settingsTitle);
+settingsHeader.appendChild(settingsCloseButton);
+
+const settingsTogglesSection = document.createElement("section");
+settingsTogglesSection.className = "tabby-settings-section";
+
+const settingsTogglesHeading = document.createElement("h3");
+settingsTogglesHeading.textContent = "Display";
+
+settingsTogglesSection.appendChild(settingsTogglesHeading);
+
+function createSettingsToggleRow(labelText, helpText, titleText) {
+    const row = document.createElement("div");
+    row.className = "tabby-setting-row";
+    row.title = titleText;
+
+    const copy = document.createElement("div");
+    copy.className = "tabby-setting-copy";
+
+    const label = document.createElement("strong");
+    label.textContent = labelText;
+
+    const help = document.createElement("span");
+    help.textContent = helpText;
+
+    copy.appendChild(label);
+    copy.appendChild(help);
+
+    const toggle = document.createElement("label");
+    toggle.className = "tabby-switch";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+
+    const track = document.createElement("span");
+    track.className = "tabby-toggle-track";
+
+    toggle.appendChild(input);
+    toggle.appendChild(track);
+    row.appendChild(copy);
+    row.appendChild(toggle);
+
+    return {
+        row,
+        input
+    };
+}
+
+const settingsDetailsRow = createSettingsToggleRow(
+    "Show preview details",
+    "When off, cards collapse to the screenshot only. When on, cards show metadata, badges, and action buttons.",
+    "Persist the card density preference across windows and restarts."
+);
+const settingsStickyRow = createSettingsToggleRow(
+    "Keep top controls sticky",
+    "Pin the dashboard controls to the top of the page so search, recapture, and settings stay visible while scrolling.",
+    "Toggle the sticky behavior for the top dashboard controls."
+);
+const settingsPinnedRow = createSettingsToggleRow(
+    "Keep Tabby pinned",
+    "Keep one pinned Tabby dashboard tab easy to find at the front of the current window.",
+    "Toggle whether Tabby should keep the dashboard pinned in the current window."
+);
+
+settingsTogglesSection.appendChild(settingsDetailsRow.row);
+settingsTogglesSection.appendChild(settingsStickyRow.row);
+settingsTogglesSection.appendChild(settingsPinnedRow.row);
+
+const settingsGuideSection = document.createElement("section");
+settingsGuideSection.className = "tabby-settings-section";
+
+const settingsGuideHeading = document.createElement("h3");
+settingsGuideHeading.textContent = "Getting started";
+
+const settingsGuideCopy = document.createElement("p");
+settingsGuideCopy.className = "tabby-settings-copy";
+settingsGuideCopy.textContent = "Tabby shows the other tabs in the current window as cached screenshots. Use it as a visual control surface instead of a passive new-tab page.";
+
+const settingsGuideList = document.createElement("ol");
+settingsGuideList.className = "tabby-settings-list";
+for (let line of [
+    "Click a card to activate that tab. Turn on preview details if you also want pin, reload, recapture, and close buttons on every card.",
+    "Use search, filters, and sort to narrow the window. Drag-and-drop only works in Browser order.",
+    "Use Recapture previews to refresh every visible screenshot at once or enter selection mode and choose a few cards.",
+    "Keep Tabby pinned if you want a single dashboard tab to remain easy to find even in a large tab strip."
+]) {
+    let item = document.createElement("li");
+    item.textContent = line;
+    settingsGuideList.appendChild(item);
+}
+
+settingsGuideSection.appendChild(settingsGuideHeading);
+settingsGuideSection.appendChild(settingsGuideCopy);
+settingsGuideSection.appendChild(settingsGuideList);
+
+settingsPanel.appendChild(settingsHeader);
+settingsPanel.appendChild(settingsTogglesSection);
+settingsPanel.appendChild(settingsGuideSection);
+
+topPanelInner.appendChild(hero);
+topPanelInner.appendChild(controls);
+topPanelInner.appendChild(selectionBar);
+metaBar.appendChild(status);
+metaBar.appendChild(hint);
+topPanelInner.appendChild(metaBar);
+topPanel.appendChild(topPanelInner);
+
+shell.appendChild(topPanel);
+shell.appendChild(list);
+root.appendChild(shell);
+document.body.appendChild(settingsScrim);
+document.body.appendChild(settingsPanel);
+
+function setStatus(message) {
+    status.textContent = message;
+}
+
+function getDisplayUrl(tab) {
+    return tab.url || tab.pendingUrl || "Browser page";
+}
+
+function getDomain(tab) {
+    try {
+        return tab.url ? new URL(tab.url).hostname : "Browser page";
+    } catch (error) {
+        return "Browser page";
+    }
+}
+
+function formatClock(timestamp) {
+    if (!timestamp) {
+        return "Unknown";
+    }
+    return new Date(timestamp).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit"
+    });
+}
+
+function describeOpenedAt(tab) {
+    let firstSeenAt = tabMeta[tab.id]?.firstSeenAt;
+    return firstSeenAt ? `Opened ${formatClock(firstSeenAt)}` : "Opened time unavailable";
+}
+
+function describePreview(tab) {
+    if (tab.discarded) {
+        return "Preview unavailable until the tab is reloaded.";
+    }
+    if (previewCache[tab.id]?.updatedAt) {
+        return `Preview captured ${formatClock(previewCache[tab.id].updatedAt)}`;
+    }
+    return "No captured preview yet. Use Recapture to try again.";
+}
+
+function isBookmarked(tab) {
+    return Boolean(bookmarkState[tab.id]);
+}
+
+function isSelectedForRecapture(tabId) {
+    return selectionState.tabIds.has(tabId);
+}
+
+function createBadge(text, accent=false) {
+    let badge = document.createElement("span");
+    badge.className = accent ? "tabby-badge -accent" : "tabby-badge";
+    badge.textContent = text;
+    return badge;
+}
+
+function buildPreviewMedia(tab) {
+    const frame = document.createElement("div");
+    frame.className = "tabby-preview";
+
+    const image = document.createElement("img");
+    image.alt = "";
+    image.style.display = "none";
+
+    const placeholder = document.createElement("div");
+    placeholder.className = "tabby-placeholder";
+
+    const placeholderLabel = document.createElement("div");
+    placeholderLabel.textContent = tab.discarded ? "Discarded tab" : "Preview pending";
+    placeholderLabel.style.fontWeight = "700";
+    placeholderLabel.style.marginBottom = "6px";
+
+    const placeholderText = document.createElement("div");
+    placeholderText.textContent = tab.discarded ? "Reload the page before capturing again." : "Activate or recapture this tab to refresh its screenshot.";
+    placeholderText.style.fontSize = "13px";
+    placeholderText.style.lineHeight = "1.45";
+
+    placeholder.appendChild(placeholderLabel);
+    placeholder.appendChild(placeholderText);
+    frame.appendChild(image);
+    frame.appendChild(placeholder);
+
+    let preview = previewCache[tab.id];
+    if (preview?.src) {
+        image.src = preview.src;
+        image.style.display = "block";
+        placeholder.style.display = "none";
+    } else if (tab.favIconUrl) {
+        const favicon = document.createElement("img");
+        favicon.alt = "";
+        favicon.src = tab.favIconUrl;
+        favicon.style.width = "40px";
+        favicon.style.height = "40px";
+        favicon.style.marginBottom = "10px";
+        placeholder.prepend(favicon);
+    }
+
+    if (selectionState.active) {
+        const selectionChip = document.createElement("div");
+        let selected = isSelectedForRecapture(tab.id);
+        selectionChip.className = selected ? "tabby-selection-chip -selected" : "tabby-selection-chip";
+        selectionChip.textContent = selected ? "Selected" : "Select";
+        frame.appendChild(selectionChip);
+    }
+
+    return frame;
+}
+
+function createActionButton(label, title, handler) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "tabby-action";
+    button.textContent = label;
+    button.title = title;
+    button.addEventListener("click", event => {
+        event.stopPropagation();
+        handler().catch(error => {
+            setStatus(`Action failed: ${error}`);
+        });
+    });
+    return button;
+}
+
+function getFilteredSortedTabs() {
+    return sortTabs(applyFilters(tabState));
+}
+
+function syncDashboardChrome() {
+    detailsToggleInput.checked = viewState.showPreviewDetails;
+    settingsDetailsRow.input.checked = viewState.showPreviewDetails;
+    settingsStickyRow.input.checked = viewState.stickyControls;
+    settingsPinnedRow.input.checked = viewState.keepPinned;
+
+    topPanel.classList.toggle("-sticky", viewState.stickyControls);
+    recaptureMenu.classList.toggle("-open", viewState.recaptureMenuOpen);
+    settingsScrim.classList.toggle("-open", viewState.settingsOpen);
+    settingsPanel.classList.toggle("-open", viewState.settingsOpen);
+    settingsPanel.setAttribute("aria-hidden", viewState.settingsOpen ? "false" : "true");
+
+    selectionBar.style.display = selectionState.active ? "flex" : "none";
+    selectionCopy.textContent = selectionState.active
+        ? `${selectionState.tabIds.size} preview${selectionState.tabIds.size === 1 ? "" : "s"} selected. Click cards to add or remove them, then confirm the recapture.`
+        : "";
+    selectionConfirmButton.disabled = selectionState.tabIds.size === 0;
+    selectionConfirmButton.classList.toggle("-disabled", selectionState.tabIds.size === 0);
+}
+
+function closeMenus() {
+    viewState.recaptureMenuOpen = false;
+    viewState.settingsOpen = false;
+    syncDashboardChrome();
+}
+
+async function setShowPreviewDetails(value) {
+    viewState.showPreviewDetails = value;
+    syncDashboardChrome();
+    await saveDashboardSetting(OPTION_SHOW_PREVIEW_DETAILS, value);
+    renderVisibleTabs();
+}
+
+async function setStickyControls(value) {
+    viewState.stickyControls = value;
+    syncDashboardChrome();
+    await saveDashboardSetting(OPTION_STICKY_CONTROLS, value);
+}
+
+async function setKeepPinned(value) {
+    viewState.keepPinned = value;
+    syncDashboardChrome();
+    await saveDashboardSetting(OPTION_KEEP_PINNED, value);
+
+    if (value) {
+        await ensurePinnedDashboard();
+    } else {
+        let tabs = await browser.tabs.query({ currentWindow: true });
+        let tabbyTabs = tabs.filter(tab => (tab.url || "").startsWith(NEWTAB_URL) && tab.pinned);
+        await Promise.all(tabbyTabs.map(tab => browser.tabs.update(tab.id, { pinned: false })));
+    }
+    renderVisibleTabs();
+}
+
+function openSettings() {
+    viewState.settingsOpen = true;
+    viewState.recaptureMenuOpen = false;
+    syncDashboardChrome();
+}
+
+function toggleRecaptureMenu() {
+    viewState.recaptureMenuOpen = !viewState.recaptureMenuOpen;
+    viewState.settingsOpen = false;
+    syncDashboardChrome();
+}
+
+function startRecaptureSelection() {
+    selectionState.active = true;
+    selectionState.tabIds.clear();
+    viewState.recaptureMenuOpen = false;
+    syncDashboardChrome();
+    renderVisibleTabs();
+}
+
+function cancelRecaptureSelection() {
+    selectionState.active = false;
+    selectionState.tabIds.clear();
+    syncDashboardChrome();
+    renderVisibleTabs();
+}
+
+function toggleSelectedRecapture(tab) {
+    if (tab.discarded) {
+        setStatus("Discarded tabs must be reloaded before they can be recaptured.");
+        return;
+    }
+    if (selectionState.tabIds.has(tab.id)) {
+        selectionState.tabIds.delete(tab.id);
+    } else {
+        selectionState.tabIds.add(tab.id);
+    }
+    syncDashboardChrome();
+    renderVisibleTabs();
+}
+
+async function activateTab(tab) {
+    await browser.tabs.update(tab.id, { active: true });
+    await browser.windows.update(tab.windowId, { focused: true });
+}
+
+async function closeTab(tab) {
+    setStatus(`Closing ${tab.title || tab.url || "tab"}...`);
+    await browser.tabs.remove(tab.id);
+    await renderTabs();
+}
+
+async function togglePin(tab) {
+    setStatus(`${tab.pinned ? "Unpinning" : "Pinning"} ${tab.title || tab.url || "tab"}...`);
+    await browser.tabs.update(tab.id, { pinned: !tab.pinned });
+    await renderTabs();
+}
+
+async function reloadTab(tab) {
+    setStatus(`Reloading ${tab.title || tab.url || "tab"}...`);
+    await browser.tabs.reload(tab.id, { bypassCache: true });
+    await browser.runtime.sendMessage({
+        _: "preview:refresh",
+        tabId: tab.id,
+        quality: PREVIEW_QUALITY
+    });
+    await renderTabs();
+}
+
+async function recaptureTab(tab) {
+    if (selectionState.active) {
+        toggleSelectedRecapture(tab);
+        return;
+    }
+    setStatus(`Recapturing ${tab.title || tab.url || "tab"}...`);
+    let refreshed = await browser.runtime.sendMessage({
+        _: "preview:refresh",
+        tabId: tab.id,
+        quality: PREVIEW_QUALITY
+    });
+    if (refreshed) {
+        previewCache[tab.id] = refreshed;
+    }
+    await renderTabs();
+}
+
+function renderTabCard(tab) {
+    const article = document.createElement("article");
+    article.className = "tabby-card";
+    article.dataset.tabId = tab.id;
+    article.draggable = viewState.sortMode === "browser" && !selectionState.active;
+
+    if (!viewState.showPreviewDetails) {
+        article.classList.add("-preview-only");
+    }
+    if (selectionState.active) {
+        article.classList.add("-selection-mode");
+    }
+    if (selectionState.tabIds.has(tab.id)) {
+        article.classList.add("-selected");
+    }
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "tabby-card-main";
+    button.title = selectionState.active
+        ? `Select ${tab.title || getDisplayUrl(tab)} for recapture`
+        : `Switch to ${tab.title || getDisplayUrl(tab)}`;
+    button.appendChild(buildPreviewMedia(tab));
+
+    if (viewState.showPreviewDetails) {
+        const metaRow = document.createElement("div");
+        metaRow.className = "tabby-meta-row";
+
+        const titleGroup = document.createElement("div");
+        titleGroup.style.minWidth = "0";
+
+        const urlMeta = document.createElement("div");
+        urlMeta.textContent = getDisplayUrl(tab);
+        urlMeta.className = "tabby-card-url-meta";
+        urlMeta.title = getDisplayUrl(tab);
+
+        const title = document.createElement("div");
+        title.textContent = tab.title || tab.pendingUrl || tab.url || "Untitled tab";
+        title.className = "tabby-title";
+        title.title = tab.title || tab.pendingUrl || tab.url || "Untitled tab";
+
+        titleGroup.appendChild(urlMeta);
+        titleGroup.appendChild(title);
+
+        const pill = document.createElement("div");
+        pill.textContent = tab.pinned ? "Pinned" : `Tab ${tab.index + 1}`;
+        pill.className = "tabby-pill";
+        pill.title = tab.pinned ? "This tab is pinned." : "This is the tab's current browser order index.";
+
+        metaRow.appendChild(titleGroup);
+        metaRow.appendChild(pill);
+
+        const badges = document.createElement("div");
+        badges.className = "tabby-badges";
+        badges.appendChild(createBadge(describeOpenedAt(tab)));
+        badges.appendChild(createBadge(describePreview(tab), true));
+        if (isBookmarked(tab)) {
+            badges.appendChild(createBadge("Bookmarked"));
+        }
+        if (tab.audible) {
+            badges.appendChild(createBadge("Audible"));
+        }
+        if (tab.discarded) {
+            badges.appendChild(createBadge("Discarded"));
+        }
+
+        button.appendChild(metaRow);
+        button.appendChild(badges);
+    }
+
+    button.addEventListener("click", async event => {
+        event.preventDefault();
+        if (selectionState.active) {
+            toggleSelectedRecapture(tab);
+            return;
+        }
+        await activateTab(tab);
+    });
+
+    article.appendChild(button);
+
+    if (viewState.showPreviewDetails && !selectionState.active) {
+        const actions = document.createElement("div");
+        actions.className = "tabby-action-row";
+        actions.appendChild(createActionButton("Open", "Activate this tab", () => activateTab(tab)));
+        actions.appendChild(createActionButton(tab.pinned ? "Unpin" : "Pin", "Toggle pin state", () => togglePin(tab)));
+        actions.appendChild(createActionButton("Reload", "Reload the page and refresh its preview cache", () => reloadTab(tab)));
+        actions.appendChild(createActionButton("Recapture", "Force a new preview screenshot", () => recaptureTab(tab)));
+        actions.appendChild(createActionButton("Close", "Close this tab", () => closeTab(tab)));
+        article.appendChild(actions);
+    }
+
+    wireDragAndDrop(article, tab);
+    return article;
+}
+
+async function getVisibleTabs() {
+    const currentTabs = await browser.tabs.query({ currentWindow: true });
+    return currentTabs
+        .filter(tab => !(tab.url || "").startsWith(NEWTAB_URL))
+        .sort((left, right) => left.index - right.index);
+}
+
+async function getBookmarkStateForTabs(tabs) {
+    if (!browser.bookmarks?.search) {
+        return {};
+    }
+
+    let uniqueUrls = new Map();
+    for (let tab of tabs) {
+        let url = tab.url || tab.pendingUrl;
+        if (url && !uniqueUrls.has(url)) {
+            uniqueUrls.set(url, false);
+        }
+    }
+
+    await Promise.all(Array.from(uniqueUrls.keys()).map(async url => {
+        let matches = await browser.bookmarks.search({ url });
+        uniqueUrls.set(url, matches.length > 0);
+    }));
+
+    let result = {};
+    for (let tab of tabs) {
+        let url = tab.url || tab.pendingUrl;
+        result[tab.id] = url ? uniqueUrls.get(url) || false : false;
+    }
+    return result;
+}
+
+async function updatePreviewCacheForTabs(tabs) {
+    previewCache = await browser.runtime.sendMessage({
+        _: "preview:getCached",
+        tabIds: tabs.map(tab => tab.id)
+    });
+
+    let missingTabs = tabs
+        .filter(tab => !tab.discarded && !previewCache[tab.id]?.src)
+        .map(tab => tab.id);
+
+    if (missingTabs.length > 0) {
+        let captured = await browser.runtime.sendMessage({
+            _: "preview:ensureMany",
+            tabIds: missingTabs,
+            quality: PREVIEW_QUALITY,
+            force: false
+        });
+        previewCache = {
+            ...previewCache,
+            ...captured
+        };
+    }
+}
+
+function getOpenedAt(tab) {
+    return tabMeta[tab.id]?.firstSeenAt || 0;
+}
+
+function applyFilters(tabs) {
+    return tabs.filter(tab => {
+        let searchText = viewState.search.trim().toLowerCase();
+        let domain = getDomain(tab);
+        let title = (tab.title || "").toLowerCase();
+        let url = getDisplayUrl(tab).toLowerCase();
+
+        if (searchText) {
+            let haystack = `${title}\n${url}\n${domain.toLowerCase()}`;
+            if (!haystack.includes(searchText)) {
+                return false;
+            }
+        }
+
+        if (viewState.domainFilter !== "all" && domain !== viewState.domainFilter) {
+            return false;
+        }
+
+        switch (viewState.statusFilter) {
+            case "bookmarked":
+                return isBookmarked(tab);
+            case "unbookmarked":
+                return !isBookmarked(tab);
+            case "pinned":
+                return tab.pinned;
+            case "unpinned":
+                return !tab.pinned;
+            case "discarded":
+                return tab.discarded;
+            case "audible":
+                return tab.audible;
+            default:
+                return true;
+        }
+    });
+}
+
+function sortTabs(tabs) {
+    let sorted = [...tabs];
+    switch (viewState.sortMode) {
+        case "domain":
+            sorted.sort((left, right) => getDomain(left).localeCompare(getDomain(right)) || left.index - right.index);
+            break;
+        case "title":
+            sorted.sort((left, right) => (left.title || left.url || "").localeCompare(right.title || right.url || "") || left.index - right.index);
+            break;
+        case "openedNewest":
+            sorted.sort((left, right) => getOpenedAt(right) - getOpenedAt(left) || left.index - right.index);
+            break;
+        case "openedOldest":
+            sorted.sort((left, right) => getOpenedAt(left) - getOpenedAt(right) || left.index - right.index);
+            break;
+        case "bookmarked":
+            sorted.sort((left, right) => Number(isBookmarked(right)) - Number(isBookmarked(left)) || left.index - right.index);
+            break;
+        default:
+            sorted.sort((left, right) => left.index - right.index);
+            break;
+    }
+    return sorted;
+}
+
+function updateDomainFilterOptions(tabs) {
+    let domains = Array.from(new Set(tabs.map(getDomain))).sort((left, right) => left.localeCompare(right));
+    let previous = viewState.domainFilter;
+    domainFilter.replaceChildren();
+
+    let allOption = document.createElement("option");
+    allOption.value = "all";
+    allOption.textContent = "All domains";
+    domainFilter.appendChild(allOption);
+
+    for (let domain of domains) {
+        let option = document.createElement("option");
+        option.value = domain;
+        option.textContent = domain;
+        domainFilter.appendChild(option);
+    }
+
+    viewState.domainFilter = domains.includes(previous) || previous === "all" ? previous : "all";
+    domainFilter.value = viewState.domainFilter;
+}
+
+function updateHint(visibleTabs) {
+    if (selectionState.active) {
+        hint.textContent = "Selection mode is active. Click previews to choose them, then use Recapture selected above.";
+        return;
+    }
+    if (visibleTabs.length === 0) {
+        hint.textContent = "No tabs match the current filters.";
+        return;
+    }
+    if (viewState.sortMode === "browser") {
+        hint.textContent = "Drag cards to reorder real browser tabs. Moving across the pinned boundary is blocked until pin states match.";
+    } else {
+        hint.textContent = "Switch back to Browser order to drag tabs. Other sort modes are read-only views.";
+    }
+}
+
+function clearDropMarkers() {
+    for (let element of list.querySelectorAll(".tabby-card.-active-drop-before, .tabby-card.-active-drop-after")) {
+        element.classList.remove("-active-drop-before", "-active-drop-after");
+    }
+}
+
+function getDropRelation(event, element) {
+    let bounds = element.getBoundingClientRect();
+    let offsetX = event.clientX - bounds.left;
+    let offsetY = event.clientY - bounds.top;
+    if (bounds.width >= bounds.height) {
+        return offsetX < bounds.width / 2 ? "before" : "after";
+    }
+    return offsetY < bounds.height / 2 ? "before" : "after";
+}
+
+async function reorderTabs(sourceTabId, targetTabId, relation) {
+    let sourceTab = tabState.find(tab => tab.id === sourceTabId);
+    let targetTab = tabState.find(tab => tab.id === targetTabId);
+    if (!sourceTab || !targetTab || sourceTab.id === targetTab.id) {
+        return;
+    }
+    if (sourceTab.pinned !== targetTab.pinned) {
+        setStatus("Pin or unpin the tab first before moving it across the pinned boundary.");
+        return;
+    }
+
+    let targetIndex = relation === "after" ? targetTab.index + 1 : targetTab.index;
+    if (sourceTab.index < targetIndex) {
+        targetIndex -= 1;
+    }
+
+    setStatus(`Moving ${sourceTab.title || sourceTab.url || "tab"}...`);
+    await browser.tabs.move(sourceTab.id, { index: targetIndex });
+    await renderTabs();
+}
+
+function wireDragAndDrop(element, tab) {
+    if (viewState.sortMode !== "browser" || selectionState.active) {
+        return;
+    }
+
+    element.addEventListener("dragstart", event => {
+        dragTabId = tab.id;
+        element.classList.add("-dragging");
+        if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", String(tab.id));
+        }
+    });
+
+    element.addEventListener("dragend", () => {
+        dragTabId = undefined;
+        element.classList.remove("-dragging");
+        clearDropMarkers();
+    });
+
+    element.addEventListener("dragover", event => {
+        if (!dragTabId || dragTabId === tab.id) {
+            return;
+        }
+        event.preventDefault();
+        clearDropMarkers();
+        let relation = getDropRelation(event, element);
+        element.classList.add(relation === "before" ? "-active-drop-before" : "-active-drop-after");
+    });
+
+    element.addEventListener("drop", event => {
+        if (!dragTabId || dragTabId === tab.id) {
+            return;
+        }
+        event.preventDefault();
+        let relation = getDropRelation(event, element);
+        clearDropMarkers();
+        reorderTabs(dragTabId, tab.id, relation).catch(error => {
+            setStatus(`Failed to move tab: ${error}`);
+        });
+    });
+}
+
+function renderVisibleTabs() {
+    let visibleTabs = getFilteredSortedTabs();
+    setStatus(`${visibleTabs.length} of ${tabState.length} tab${tabState.length === 1 ? "" : "s"} in this window.${viewState.keepPinned ? " Tabby stays pinned at the front for quick return." : ""}`);
+    updateHint(visibleTabs);
+
+    if (visibleTabs.length === 0) {
+        let empty = document.createElement("div");
+        empty.className = "tabby-empty";
+        empty.textContent = selectionState.active
+            ? "No visible cards are available to select right now. Adjust filters or cancel selection mode."
+            : "No tabs match the current filters. Reset the controls or clear the search to bring cards back.";
+        list.replaceChildren(empty);
+        return;
+    }
+
+    list.replaceChildren(...visibleTabs.map(renderTabCard));
+}
+
+async function renderTabs() {
+    tabState = await getVisibleTabs();
+    renderedTabIds = tabState.map(tab => tab.id);
+    let [tabMetaResult, bookmarkStateResult] = await Promise.all([
+        browser.runtime.sendMessage({
+            _: "tabs:getMeta",
+            tabIds: tabState.map(tab => tab.id)
+        }),
+        getBookmarkStateForTabs(tabState)
+    ]);
+    tabMeta = tabMetaResult || {};
+    bookmarkState = bookmarkStateResult || {};
+    await updatePreviewCacheForTabs(tabState);
+    updateDomainFilterOptions(tabState);
+    renderVisibleTabs();
+}
+
+async function recaptureVisiblePreviews() {
+    let visibleTabs = getFilteredSortedTabs().filter(tab => !tab.discarded);
+    if (visibleTabs.length === 0) {
+        setStatus("No visible tabs available to recapture.");
+        return;
+    }
+    setStatus(`Recapturing ${visibleTabs.length} visible preview${visibleTabs.length === 1 ? "" : "s"}...`);
+    let refreshed = await browser.runtime.sendMessage({
+        _: "preview:ensureMany",
+        tabIds: visibleTabs.map(tab => tab.id),
+        quality: PREVIEW_QUALITY,
+        force: true
+    });
+    previewCache = {
+        ...previewCache,
+        ...(refreshed || {})
+    };
+    viewState.recaptureMenuOpen = false;
+    syncDashboardChrome();
+    await renderTabs();
+}
+
+async function recaptureSelectedPreviews() {
+    let selectedTabIds = Array.from(selectionState.tabIds);
+    if (selectedTabIds.length === 0) {
+        setStatus("Choose at least one preview before confirming the recapture.");
+        return;
+    }
+    setStatus(`Recapturing ${selectedTabIds.length} selected preview${selectedTabIds.length === 1 ? "" : "s"}...`);
+    let refreshed = await browser.runtime.sendMessage({
+        _: "preview:ensureMany",
+        tabIds: selectedTabIds,
+        quality: PREVIEW_QUALITY,
+        force: true
+    });
+    previewCache = {
+        ...previewCache,
+        ...(refreshed || {})
+    };
+    cancelRecaptureSelection();
+    await renderTabs();
+}
+
+async function ensurePinnedDashboard() {
+    let result = await browser.runtime.sendMessage({ _: "dashboard:ensurePinned" });
+    if (result?.status === "redirected") {
+        setStatus("Returning to the pinned Tabby dashboard...");
+    }
+}
+
+detailsToggleInput.addEventListener("change", event => {
+    setShowPreviewDetails(event.target.checked).catch(error => {
+        setStatus(`Failed to change card density: ${error}`);
+    });
+});
+
+settingsDetailsRow.input.addEventListener("change", event => {
+    setShowPreviewDetails(event.target.checked).catch(error => {
+        setStatus(`Failed to change card density: ${error}`);
+    });
+});
+
+settingsStickyRow.input.addEventListener("change", event => {
+    setStickyControls(event.target.checked).catch(error => {
+        setStatus(`Failed to update sticky controls: ${error}`);
+    });
+});
+
+settingsPinnedRow.input.addEventListener("change", event => {
+    setKeepPinned(event.target.checked).catch(error => {
+        setStatus(`Failed to update pinned Tabby behavior: ${error}`);
+    });
+});
+
+recaptureButton.addEventListener("click", event => {
+    event.stopPropagation();
+    toggleRecaptureMenu();
+});
+
+recaptureAllButton.addEventListener("click", () => {
+    recaptureVisiblePreviews().catch(error => {
+        setStatus(`Failed to recapture previews: ${error}`);
+    });
+});
+
+recaptureSelectedModeButton.addEventListener("click", () => {
+    startRecaptureSelection();
+});
+
+selectionConfirmButton.addEventListener("click", () => {
+    recaptureSelectedPreviews().catch(error => {
+        setStatus(`Failed to recapture selected previews: ${error}`);
+    });
+});
+
+selectionCancelButton.addEventListener("click", () => {
+    cancelRecaptureSelection();
+});
+
+resetFiltersButton.addEventListener("click", () => {
+    viewState.search = "";
+    viewState.statusFilter = "all";
+    viewState.domainFilter = "all";
+    viewState.sortMode = "browser";
+    searchInput.value = "";
+    statusFilter.value = "all";
+    domainFilter.value = "all";
+    sortSelect.value = "browser";
+    renderVisibleTabs();
+});
+
+settingsButton.addEventListener("click", event => {
+    event.stopPropagation();
+    viewState.settingsOpen = !viewState.settingsOpen;
+    viewState.recaptureMenuOpen = false;
+    syncDashboardChrome();
+});
+
+settingsCloseButton.addEventListener("click", () => {
+    closeMenus();
+});
+
+settingsScrim.addEventListener("click", () => {
+    closeMenus();
+});
+
+searchInput.addEventListener("input", event => {
+    viewState.search = event.target.value;
+    renderVisibleTabs();
+});
+
+statusFilter.addEventListener("change", event => {
+    viewState.statusFilter = event.target.value;
+    renderVisibleTabs();
+});
+
+domainFilter.addEventListener("change", event => {
+    viewState.domainFilter = event.target.value;
+    renderVisibleTabs();
+});
+
+sortSelect.addEventListener("change", event => {
+    viewState.sortMode = event.target.value;
+    renderVisibleTabs();
+});
+
+document.addEventListener("click", event => {
+    if (!heroActions.contains(event.target)) {
+        viewState.recaptureMenuOpen = false;
+        syncDashboardChrome();
+    }
+});
+
+window.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+        if (selectionState.active) {
+            cancelRecaptureSelection();
+            return;
+        }
+        closeMenus();
+    }
+});
+
+const rerender = () => {
+    renderTabs().catch(error => {
+        setStatus(`Failed to load tabs: ${error}`);
+    });
+};
+
+browser.tabs.onActivated.addListener(rerender);
+browser.tabs.onAttached.addListener(rerender);
+browser.tabs.onCreated.addListener(rerender);
+browser.tabs.onDetached.addListener(rerender);
+browser.tabs.onMoved.addListener(rerender);
+browser.tabs.onRemoved.addListener(tabId => {
+    delete previewCache[tabId];
+    delete tabMeta[tabId];
+    delete bookmarkState[tabId];
+    selectionState.tabIds.delete(tabId);
+    if (renderedTabIds.includes(tabId)) {
+        rerender();
+    }
+});
+browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (renderedTabIds.includes(tabId) && (changeInfo.status || changeInfo.title || changeInfo.url || changeInfo.favIconUrl || Object.prototype.hasOwnProperty.call(changeInfo, "discarded"))) {
+        rerender();
+    }
+});
+if (browser.bookmarks?.onCreated) {
+    browser.bookmarks.onCreated.addListener(rerender);
+    browser.bookmarks.onRemoved.addListener(rerender);
+    browser.bookmarks.onChanged.addListener(rerender);
+}
+window.addEventListener("focus", rerender);
+
+async function initializeDashboard() {
+    await loadDashboardSettings();
+    syncDashboardChrome();
+    if (viewState.keepPinned) {
+        await ensurePinnedDashboard();
+    }
+    await renderTabs();
+}
+
+initializeDashboard().catch(error => {
+    setStatus(`Failed to load tabs: ${error}`);
+});

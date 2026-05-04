@@ -1,18 +1,19 @@
 {
 
     "manifest_version": 3,
-    "name": "TabbyToo - Window and Tab Manager",
+    "name": "Tabby - Window and Tab Manager",
     "version": "<this will be filled in when `gen-manifest` gets run>",
 
-    "description": "Manage great amounts of windows and tabs at ease.",
+    "description": "Preview and manage tabs from the New Tab dashboard, popup, sidebar, and standalone layouts.",
     "icons": {
-        "48": "icons/tabbytoo-48.png",
-        "96": "icons/tabbytoo-96.png"
+        "48": "icons/tabby-48.png",
+        "96": "icons/tabby-96.png"
     },
 
     "permissions": [
         "tabs",
         "storage",
+        "bookmarks",
         "cookies",
         "contextMenus",
         "webNavigation",
@@ -22,6 +23,10 @@
     
     "content_security_policy": {
         "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+    },
+
+    "chrome_url_overrides": {
+        "newtab": "newtab/newtab.html"
     },
 
     "options_ui": {
@@ -36,21 +41,28 @@
             "run_at": "document_start"
         }
     ],
+
     "action": {
-        "default_icon": "icons/tabbytoo-32.png",
-        "default_title": "TabbyToo",
+        "default_icon": "icons/tabby-32.png",
+        "default_title": "Tabby",
         "default_popup": "popup/index.html"
     },
+
     "sidebar_action": {
-        "default_icon": "icons/tabbytoo-32.png",
-        "default_title": "TabbyToo",
+        "default_icon": "icons/tabby-32.png",
+        "default_title": "Tabby",
         "default_panel": "popup/sidebar.html",
         "browser_style": false,
         "open_at_install": false
     },
+
     "background": {
-        "scripts": ["background/background.js", "background/captureTab.js", "background/tmpClear.js", "background/commands.js"],
-        "service_worker": "background/background-sw.js"
+        "scripts": [
+            "background/background.js",
+            "background/captureTab.js",
+            "background/tmpClear.js",
+            "background/commands.js"
+        ]
     },
 
     "commands": {
@@ -59,21 +71,21 @@
                 "default": "Ctrl+Shift+Space",
                 "mac": "MacCtrl+Shift+Space"
             },
-            "description": "Open TabbyToo, with focus on the search bar"
+            "description": "Open Tabby, with focus on the search bar"
         },
         "open-tabby-focus-current": {
             "suggested_key": {
-                "default": "Alt+Period",
-                "mac": "Alt+Period"
+                "default": "Ctrl+Shift+X",
+                "mac": "MacCtrl+Shift+X"
             },
-            "description": "Open TabbyToo, with focus on the current tab"
+            "description": "Open Tabby, with focus on the current tab"
         },
         "open-tabby-switch-view": {
             "suggested_key": {
-                "default": "Alt+Comma",
-                "mac": "Alt+Comma"
+                "default": "Alt+F8",
+                "mac": "Alt+F8"
             },
-            "description": "Switch views"
+            "description": "Switch Tabby layouts"
         },
         "last-used-tab": {
             "suggested_key": {

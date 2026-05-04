@@ -1,89 +1,95 @@
-# What is it?
+# Tabby Window And Tab Manager
 
 [![ci](https://github.com/Bill13579/tabby/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/Bill13579/tabby/actions/workflows/ci.yml)
 
-TabbyToo is an open-source window & tab manager that can manage great amounts of windows and tabs at ease.
+Tabby is being rebuilt as a Firefox-first tab manager with a visual New Tab dashboard plus restored popup, sidebar, and standalone layouts.
 
-You can install the latest stable version of TabbyToo on it's Firefox Add-on page: https://addons.mozilla.org/addon/tabby-window-tab-manager/
-Or, to install the newest development version, see the [Building, Installing, and Editing](#building-installing-and-editing) section.
+The New Tab page is based on static screenshots, not live embedded pages. Tabby now treats the New Tab page as a pinned dashboard for the current window: you can jump back to it quickly, close or pin tabs directly from the card grid, trigger preview recaptures, use compact or detailed cards, and reorder real browser tabs by dragging cards in browser-order mode. The older management layouts are also available again through the popup, sidebar, and standalone/tab surfaces.
 
-# Contributing
+## Current scope
 
-If you like this project, please share it. Your support is always welcomed!
+- Replace the browser new tab page with a dashboard of preview cards for the other tabs in the current window.
+- Show each tab's title, URL, favicon, and latest captured screenshot on the New Tab dashboard.
+- Activate, close, pin or unpin, reload, and recapture tabs directly from the New Tab dashboard.
+- Keep a single pinned Tabby dashboard tab per window so it stays easy to find in long tab strips.
+- Toggle between compact screenshot-only cards and a more detailed New Tab card view with actions and metadata.
+- Filter tabs by search text, bookmark state, pinned state, discarded state, audible state, and domain.
+- Sort tabs by browser order, domain, title, opened time, and bookmark status.
+- Reorder real browser tabs by dragging cards while the dashboard is in browser-order mode.
+- Recapture all visible previews at once or enter a selection mode and recapture only chosen cards.
+- Track first-seen timestamps for tabs so recently opened and oldest-opened sorts have stable data.
+- Open the restored Tabby layouts through the popup, sidebar, standalone window, or dedicated tab view.
+- Cycle between the legacy management layouts without affecting the New Tab dashboard, which remains available separately on every new tab.
 
-TabbyToo is an open-source project and is in active development, so feel free to submit any issues that you are experiencing and I will do my best to fix it. And if you can fix the issue altogether, feel free to submit a pull request!
+## Limitations
 
-# Building, Installing, and Editing
+- Preview cards are screenshots, not live interactive views.
+- Firefox is the primary target for the current rebuild and legacy-layout compatibility.
+- A tab without a cached screenshot will show a placeholder until it has been activated and captured.
+- Discarded tabs cannot be previewed until they are reloaded or activated.
+- Preview recapture depends on the browser's screenshot APIs. Some tabs still capture more reliably after they are reloaded or reactivated.
+- "Opened time" is tracked from when Tabby first sees the tab, not from a browser-provided creation timestamp.
+- Drag-and-drop reorder on the New Tab dashboard is only enabled in browser-order mode. Other sort modes are read-only projections of the same tab set.
+- Tabs cannot be dragged across the pinned/unpinned boundary unless their pin state already matches the target region.
+- The restored legacy layouts are functional again, but the newest preview-focused affordances live on the New Tab dashboard first.
 
-## Prerequisites
+## Layouts
+
+Tabby now exposes two families of surfaces again:
+
+- The New Tab dashboard: visual previews, direct tab actions, preview recapture, compact or detailed cards, and drag-and-drop reorder.
+- The restored legacy layouts: popup, sidebar, standalone window, and tab view for the older list-oriented management workflow.
+
+The New Tab dashboard is not part of the legacy layout cycle. Opening or cycling the restored layouts should not replace the browser's New Tab preview dashboard.
+
+## Building
+
+### Prerequisites
 
 - [Git](https://git-scm.com/)
-- [Rustup](https://www.rust-lang.org/tools/install) (rustc >= 1.62.1)
-- [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/) >= 0.10.3
 - [Node.js](https://nodejs.org/en/) >= 16.15.0 LTS
-- Firefox >= 59 (recommended)<br/>
-  or<br/>
-  Chrome >= 49 (fully tested on Chrome 72)
-  
-**IMPORTANT NOTE:** If you encounter an issue compiling the "lindera-ipadic" dependency on the `npm run build:firefox` step, it is likely that you do not have enough memory or CPU. This is especially an issue on virtual machines, and is hard to detect since the error messages are incredibly vague.  
-On an Ubuntu VM, 4gb RAM + 2 cores has been proven to work.
+- Firefox >= 59 recommended for the current preview workflow
 
-## Building TabbyToo
+### Build commands
 
-1. Open a git enabled shell of your choice (e.g. Command Prompt, Git Bash)
-2. Get the source code  
-`git clone https://github.com/Bill13579/tabby.git`
-3. Go into the TabbyToo directory  
-`cd tabby`
-4. Install dependencies with npm  
-`npm install`
-5. Build TabbyToo  
-Firefox: `npm run build:firefox`  
-Chrome: `npm run build:chrome`  
-WebExtension: `npm run build:webext`
+1. Clone the repository.
+2. Install dependencies with `npm install`.
+3. Build the Firefox target with `npm run build:firefox`.
 
-The `dist` folder, after the build, can then be packaged as a zip file and installed.
+Additional targets remain in the repo:
+
+- Chrome: `npm run build:chrome`
+- Generic WebExtension bundle: `npm run build:webext`
+
+The build writes assets to `dist`.
 
 ## Installation
 
 ### Firefox
-This will install TabbyToo as a temporary add-on, so you will need to re-do this everytime you restart Firefox.
 
-1. Start Firefox
-2. Go to `about:debugging`
-3. Press on the `Load Temporary Add-on...` button
-4. Select the `manifest.json` file in the `dist` directory
+1. Open `about:debugging`.
+2. Choose `This Firefox`.
+3. Select `Load Temporary Add-on...`.
+4. Pick `dist/manifest.json`.
+
+Do not load `src/manifest.json`. The `src` folder contains source files only; Firefox needs the built files emitted into `dist`, including `dist/newtab/newtab.html`, the popup/options/background bundles, and the restored static layout assets under `dist/popup`, `dist/options`, `dist/icons`, and `dist/stylesheets`.
 
 ### Chrome
 
-1. Start Chrome
-2. Go to `chrome://extensions`
-3. Press on the `Load unpacked` button
-4. Select the `dist` directory
+Chrome builds remain in the repo, but the preview experience is currently tuned for Firefox-first behavior and has not been validated to the same level.
 
-## Editing & Testing
+## Development notes
 
-After you edit the code, you will need to build again.
+- The new tab page is emitted as `dist/newtab/newtab.html` during the webpack build.
+- The background worker in `src/background/captureTab.js` now handles screenshot capture, preview caching, tab metadata, and pinned-dashboard enforcement.
+- The new tab UI in `src/newtab/newtab.js` owns the card grid, sticky toolbar, settings/help surface, per-card tab actions, preview-density toggle, and drag-and-drop reorder interactions.
+- The restored popup, sidebar, standalone, and options page still rely on tracked static assets under `dist/` plus webpack-generated JS bundles.
+- If you change source files, rebuild before reloading the extension in the browser.
 
-Re-do Step 5 of [Building TabbyToo](#building-tabbytoo) and<br/>
-- on Firefox, press the `Reload` button in the TabbyToo section of the `about:debugging` page.<br/>
-- on Chrome, press the <img src="https://i.imgur.com/FcVtjot.png" alt="Chrome Reload Icon" width="23px" /><!-- https://imgur.com/a/VHMbJ4l --> button in the TabbyToo section of the `chrome://extensions` page.
+## File structure
 
-Note: Content Scripts will only be reloaded for each tab once that tab is refreshed.
-
-# File Structure
-
-icons/ - Directory for storing TabbyToo icons<br/>
-icons/tabbytoo.svg - TabbyToo icon (Vector)<br/>
-icons/tabbytoo.png - TabbyToo icon (Raster)<br/>
-
-release/ - Release zip files<br/>
-
-screenshots/ - Screenshots<br/>
-screenshots-archive/ - Old screenshots of old releases<br/>
-
-dist/ - Distribution directory<br/>
-src/ - Source code directory (for more info, go to the [README.md](src/README.md) file in that directory)<br/>
-
-LICENSE - License file<br/>
-README&#46;md - README file
+- `src/newtab/` contains the New Tab dashboard UI.
+- `src/popup/` contains the restored legacy popup/sidebar/tab manager logic.
+- `src/options/` contains the options page logic and option defaults.
+- `src/background/` contains layout commands, background coordination, and preview capture.
+- `dist/` contains the built JS bundles plus tracked static assets for the restored legacy layouts.

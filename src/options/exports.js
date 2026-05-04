@@ -11,7 +11,10 @@ let defaults = {
     "option:popup-theme": "classic",
     "option:dont-clear-search": true,
     "option:show-whats-new-on": "major-update",
-    "option:separate-save": false
+    "option:separate-save": false,
+    "option:newtab-show-preview-details": false,
+    "option:newtab-sticky-controls": true,
+    "option:newtab-keep-pinned": true
 };
 export function resolveDefault(optionID) {
     return defaults[optionID];

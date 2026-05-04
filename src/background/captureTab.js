@@ -1,16 +1,131 @@
 /**
- * Capture various information about the tab (e.g. captureTab screenshot, indexing for full-text search)
+ * Capture and cache static tab preview screenshots for the new-tab page.
  */
 
 import "Polyfill";
 import { TTabActions } from "../tapi/taction";
-import { callContentScript } from "../tapi/content";
-import { $localtmp$ } from "../tapi/store";
-import { index, init_shard, parse_query, query, shard_doc, shard_uninitialized, unindex, unshard_doc, update_stats } from "../../cartographer/pkg/cartographer";
 
 let _captureTabAbortController;
+let _previewCache = {};
+let _previewCacheLoadPromise;
+let _tabMeta = {};
+let _tabMetaLoadPromise;
+
+const PREVIEW_CACHE_KEY = "tabby-newtab-preview-cache-v1";
+const TAB_META_KEY = "tabby-newtab-tab-meta-v1";
+const NEWTAB_URL = browser.runtime.getURL("newtab/newtab.html");
+
+const PREVIEW_QUALITY = {
+    format: "jpeg",
+    quality: 50,
+    scale: 0.2
+};
 
 class AbortError extends Error {  }
+
+async function ensurePreviewCacheLoaded() {
+    if (!_previewCacheLoadPromise) {
+        _previewCacheLoadPromise = browser.storage.local.get(PREVIEW_CACHE_KEY).then(result => {
+            _previewCache = result[PREVIEW_CACHE_KEY] || {};
+        });
+    }
+    await _previewCacheLoadPromise;
+}
+
+async function persistPreviewCache() {
+    await browser.storage.local.set({
+        [PREVIEW_CACHE_KEY]: _previewCache
+    });
+}
+
+async function ensureTabMetaLoaded() {
+    if (!_tabMetaLoadPromise) {
+        _tabMetaLoadPromise = browser.storage.local.get(TAB_META_KEY).then(result => {
+            _tabMeta = result[TAB_META_KEY] || {};
+        });
+    }
+    await _tabMetaLoadPromise;
+}
+
+async function persistTabMeta() {
+    await browser.storage.local.set({
+        [TAB_META_KEY]: _tabMeta
+    });
+}
+
+async function seedTabMetaForOpenTabs() {
+    await ensureTabMetaLoaded();
+    let tabs = await browser.tabs.query({});
+    let updated = false;
+    let now = Date.now();
+    for (let tab of tabs) {
+        if (!_tabMeta[tab.id]) {
+            _tabMeta[tab.id] = {
+                firstSeenAt: now,
+                lastActivatedAt: tab.active ? now : undefined
+            };
+            updated = true;
+        }
+    }
+    if (updated) {
+        await persistTabMeta();
+    }
+}
+
+async function getTabMeta(tabIds) {
+    await seedTabMetaForOpenTabs();
+    let keys = tabIds ? tabIds.map(id => id.toString()) : Object.keys(_tabMeta);
+    let tabMeta = {};
+    for (let key of keys) {
+        if (_tabMeta[key]) {
+            tabMeta[key] = _tabMeta[key];
+        }
+    }
+    return tabMeta;
+}
+
+async function updateTabMeta(tabId, updater) {
+    await ensureTabMetaLoaded();
+    let current = _tabMeta[tabId] || {
+        firstSeenAt: Date.now()
+    };
+    _tabMeta[tabId] = updater(current) || current;
+    await persistTabMeta();
+    return _tabMeta[tabId];
+}
+
+async function ensurePinnedDashboard(windowId, tabId) {
+    let tabs = await browser.tabs.query({ windowId });
+    let dashboardTabs = tabs.filter(tab => (tab.url || "").startsWith(NEWTAB_URL));
+    let pinnedDashboard = dashboardTabs.find(tab => tab.id !== tabId && tab.pinned);
+
+    if (pinnedDashboard) {
+        await browser.tabs.update(pinnedDashboard.id, { active: true });
+        await browser.windows.update(windowId, { focused: true });
+        await browser.tabs.remove(tabId);
+        return {
+            status: "redirected",
+            tabId: pinnedDashboard.id
+        };
+    }
+
+    let currentDashboard = dashboardTabs.find(tab => tab.id === tabId);
+    if (!currentDashboard) {
+        return {
+            status: "ignored",
+            tabId
+        };
+    }
+
+    if (!currentDashboard.pinned) {
+        await browser.tabs.update(tabId, { pinned: true });
+    }
+    await browser.tabs.move(tabId, { index: 0 }).catch(() => undefined);
+    return {
+        status: "pinned",
+        tabId
+    };
+}
 
 async function captureTab(tabId, quality) {
     if (_captureTabAbortController) {
@@ -28,245 +143,111 @@ async function captureTab(tabId, quality) {
     } catch (e) { throw new AbortError("captureTab aborted"); }
 }
 
+async function refreshPreviewCache(tabId, quality=PREVIEW_QUALITY, force=false) {
+    await ensurePreviewCacheLoaded();
+    try {
+        let tab = await browser.tabs.get(tabId);
+        if (tab.discarded) {
+            return _previewCache[tabId];
+        }
+        if (!force && _previewCache[tabId]?.src) {
+            return _previewCache[tabId];
+        }
+        let dataURI = await captureTab(tabId, quality);
+        if (dataURI) {
+            _previewCache[tabId] = {
+                src: dataURI,
+                tabId,
+                updatedAt: Date.now()
+            };
+            await persistPreviewCache();
+        }
+        return _previewCache[tabId];
+    } catch (e) {
+        return _previewCache[tabId];
+    }
+}
+
+async function ensurePreviewCacheForTabs(tabIds, quality=PREVIEW_QUALITY, force=false) {
+    await ensurePreviewCacheLoaded();
+    let previews = {};
+    for (let tabId of tabIds) {
+        let preview = await refreshPreviewCache(tabId, quality, force);
+        if (preview) {
+            previews[tabId] = preview;
+        }
+    }
+    return previews;
+}
+
+async function getPreviewCache(tabIds) {
+    await ensurePreviewCacheLoaded();
+    let keys = tabIds ? tabIds.map(id => id.toString()) : Object.keys(_previewCache);
+    let previews = {};
+    for (let key of keys) {
+        if (_previewCache[key]) {
+            previews[key] = _previewCache[key];
+        }
+    }
+    return previews;
+}
+
 browser.runtime.onMessage.addListener(message => {
     if (message["_"] !== "captureTab") return;
     return captureTab(message["tabId"], message["quality"]);
 });
-
-/**
- * Gather cartographer documents from temp local store
- */
-async function gatherDocs() {
-    let keys = (await $localtmp$.getKeys()).filter(key => key.startsWith("cartographer_"));
-    return $localtmp$.get(...keys);
-}
-/**
- * Load documents in memory
- * (Make sure that cartographer is actually uninitialized)
- */
-async function initializeCartographerFromStore() {
-    console.log("background process terminated: reinitializing");
-    init_shard();
-    let docs = await gatherDocs();
-    for (let key in docs) {
-        if (docs.hasOwnProperty(key)) {
-            shard_doc(docs[key]);
-        }
+browser.runtime.onMessage.addListener(message => {
+    if (message["_"] !== "preview:getCached") return;
+    return getPreviewCache(message["tabIds"]);
+});
+browser.runtime.onMessage.addListener(message => {
+    if (message["_"] !== "preview:refresh") return;
+    return refreshPreviewCache(message["tabId"], message["quality"], true);
+});
+browser.runtime.onMessage.addListener(message => {
+    if (message["_"] !== "preview:ensureMany") return;
+    return ensurePreviewCacheForTabs(message["tabIds"], message["quality"], message["force"]);
+});
+browser.runtime.onMessage.addListener(message => {
+    if (message["_"] !== "tabs:getMeta") return;
+    return getTabMeta(message["tabIds"]);
+});
+browser.runtime.onMessage.addListener((message, sender) => {
+    if (message["_"] !== "dashboard:ensurePinned") return;
+    if (!sender.tab?.id || !sender.tab.windowId) {
+        return Promise.resolve({ status: "ignored" });
     }
-    console.log("index successfully loaded!");
-}
+    return ensurePinnedDashboard(sender.tab.windowId, sender.tab.id);
+});
 
-let lastUpdatePromise; // Make sure that updates are made sequentially
-
-class GenericUpdateObject {
-    constructor(update_type, ...args) {
-        this.update_type = update_type;
-        this.args = args;
-    }
-}
-class GenericUpdateBuffer {
-    constructor() {
-        this.update_buffer = [];
-        this.running = false;
-    }
-    do(update_type, ...args) {
-        this.update_buffer.push(new GenericUpdateObject(update_type, ...args));
-        this.start();
-    }
-    async update(update_object) {
-        console.log("!!UNIMPLEMENTED GENERIC UPDATE BUFFERS DON'T DO ANYTHING!!");
-    }
-    async start() {
-        if (this.running) return;
-        else this.running = true;
-        const check_buffer = async () => {
-            if (this.update_buffer.length === 0) return 0;
-            else await Promise.resolve(this.update(this.update_buffer.shift()));
-        };
-        while (true) {
-            if (await check_buffer() === 0) {
-                break;
-            }
-        }
-        this.running = false;
-    }
-}
-
-// const CartographerUpdateType = {
-//     Init: 'Init',
-//     GenerateUnindexerAndUnshard: 'GenerateUnindexerAndUnshard',
-//     GenerateIndexerAndShard: 'GenerateIndexerAndShard',
-// };
-// class CartographerUpdateBuffer extends GenericUpdateBuffer {
-//     async update(update_object) {
-//         switch (update.update_type) {
-//             case CartographerUpdateType.Init:
-//                 // Re-index
-//                 if (shard_uninitialized()) {
-//                     await initializeCartographerFromStore();
-//                 }
-//             break;
-//             case CartographerUpdateType.GenerateUnindexerAndUnshard:
-
-//             break;
-//             case CartographerUpdateType.GenerateIndexerAndShard:
-
-//             break;
-//         }
-//     }
-// }
-
-let urlDB = {};
-const webNavigationListener = async ({tabId, url}) => {
-    if (!urlDB.hasOwnProperty(tabId)) {
-        urlDB[tabId] = url;
-    } else {
-        if (urlDB[tabId] === url) {
-            return;
-        } else {
-            urlDB[tabId] = url;
-        }
-    }
-
-    let a = new Date();
-    let content;
-    try {
-        try {
-            content = await callContentScript(tabId, "packd", {
-                action: "innerText"
-            });
-        } catch (e) {
-            console.error(`could not contact tab ${tabId}, error: ${e}`);
-            console.error("falling back on title+url");
-            let tab = await browser.tabs.get(tabId);
-            content = {
-                innerText: "",
-                title: tab.title,
-                url: url
-            };
-        }
-    } catch (e) {
-        console.log(`could not index tab ${tabId}, error: ${e}`);
-
+browser.tabs.onActivated.addListener(({ tabId }) => {
+    updateTabMeta(tabId, current => ({
+        ...current,
+        lastActivatedAt: Date.now()
+    }));
+    refreshPreviewCache(tabId, PREVIEW_QUALITY, true);
+});
+browser.tabs.onCreated.addListener(tab => {
+    updateTabMeta(tab.id, current => ({
+        ...current,
+        firstSeenAt: current.firstSeenAt || Date.now()
+    }));
+});
+browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.discarded) {
+        delete _previewCache[tabId];
+        persistPreviewCache();
         return;
     }
-
-    let updatePromise = lastUpdatePromise;
-    lastUpdatePromise = new Promise(async (resolve, reject) => {
-        try {
-            if (updatePromise) await updatePromise;
-
-            // Re-index
-            if (shard_uninitialized()) {
-                await initializeCartographerFromStore();
-            }
-            
-            if (!await $localtmp$.hasOne("cartographerStats")) {
-                await $localtmp$.set("cartographerStats", `{"totalDocs": 0, "lengthAvg": 0, "occurences": {}}`);
-            }
-            let cartographerStats = await $localtmp$.getOne("cartographerStats");
-            
-            // Unindex old doc first if there is one
-            let oldDoc = await $localtmp$.getOne(`cartographer_${tabId}`);
-            if (oldDoc) {
-                let { stats } = unindex(oldDoc, cartographerStats);
-                cartographerStats = JSON.stringify(stats);
-                unshard_doc(tabId.toString());
-            }
-
-            let i = index(tabId.toString(), content.innerText, content.title, content.url, cartographerStats);
-            
-            let doc = JSON.stringify(i.doc);
-
-            await $localtmp$.set("cartographerStats", JSON.stringify(i.stats));
-            await $localtmp$.set(`cartographer_${tabId}`, doc);
-            shard_doc(doc);
-            
-            let b = new Date();
-            console.log("indexing took " + (b - a) + "ms");
-
-            resolve();
-        } catch (e) {
-            console.log(`could not index tab ${tabId}, error: ${e}`);
-
-            resolve(); // Resolve anyways so the chain can keep going
-        }
-    });
-};
-browser.webNavigation.onHistoryStateUpdated.addListener(webNavigationListener);
-browser.webNavigation.onReferenceFragmentUpdated.addListener(webNavigationListener);
-browser.webNavigation.onCompleted.addListener(webNavigationListener);
-browser.tabs.onUpdated.addListener((tabId, {url}, _) => webNavigationListener({tabId, url}));
-
-browser.tabs.onRemoved.addListener((tabId, _) => {
-    let updatePromise = lastUpdatePromise;
-    lastUpdatePromise = new Promise(async (resolve, reject) => {
-        try {
-            if (updatePromise) await updatePromise;
-
-            if (!await $localtmp$.hasOne("cartographerStats")) {
-                await $localtmp$.set("cartographerStats", `{"totalDocs": 0, "lengthAvg": 0, "occurences": {}}`);
-            }
-            if (await $localtmp$.hasOne(`cartographer_${tabId}`)) {
-                let cartographerStats = await $localtmp$.getOne("cartographerStats");
-                let doc = await $localtmp$.getOne(`cartographer_${tabId}`);
-        
-                let a = new Date();
-        
-                let i = unindex(doc, cartographerStats);
-        
-                let b = new Date();
-                
-                await $localtmp$.set("cartographerStats", JSON.stringify(i.stats));
-                await $localtmp$.unset(`cartographer_${tabId}`);
-                unshard_doc(tabId.toString());
-
-                console.log(`unindexed ${tabId} in ${(b - a)}ms`);
-            }
-
-            resolve();
-        } catch (e) {
-            console.log(`could not unindex tab ${tabId}, error: ${e}`);
-
-            resolve(); // Resolve anyways so the chain can keep going
-        }
-    });
+    if (changeInfo.status === "complete" && tab.active) {
+        refreshPreviewCache(tabId, PREVIEW_QUALITY, true);
+    }
+});
+browser.tabs.onRemoved.addListener(tabId => {
+    delete _previewCache[tabId];
+    delete _tabMeta[tabId];
+    persistPreviewCache();
+    persistTabMeta();
 });
 
-async function search(ids, signal) {
-    let results = {};
-    const chunkSize = 10;
-    for (let i = 0; i < ids.length; i += chunkSize) {
-        if (signal.aborted) throw new AbortError(`search aborted`);
-        const chunk = ids.slice(i, i + chunkSize);
-        Object.assign(results, query(chunk.join(","), chunk.length));
-    }
-    if (signal.aborted) throw new AbortError(`search aborted`);
-    await browser.runtime.sendMessage({
-        _: "search",
-        results
-    });
-}
-
-let _searchAbortController;
-
-async function searchSetup(queryString, ids) {
-    if (_searchAbortController) {
-        _searchAbortController.abort();
-    }
-    _searchAbortController = new AbortController();
-    const signal = _searchAbortController.signal;
-
-    let stats = await $localtmp$.getOne("cartographerStats");
-    update_stats(stats);
-    let query = parse_query(queryString);
-
-    search(ids, signal);
-
-    return query;
-}
-
-browser.runtime.onMessage.addListener(message => {
-    if (message["_"] !== "search") return;
-    return searchSetup(message["queryString"], message["ids"]);
-});
+seedTabMetaForOpenTabs();
