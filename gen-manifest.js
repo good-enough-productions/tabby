@@ -16,12 +16,16 @@ switch (process.argv[2]) {
                 strict_min_version: "59.0"
             }
         };
-        manifest.permissions.push("contextualIdentities");
-        manifest.host_permissions.push("<all_urls>");
+        delete manifest.background?.service_worker;
+        if (!manifest.host_permissions.includes("<all_urls>")) {
+            manifest.host_permissions.push("<all_urls>");
+        }
         break;
     case "chrome":
         // Remove suggested keys for last-used-window, since only 4 are allowed.
-        manifest.commands["last-used-window"]["suggested_key"] = undefined;
+        if (manifest.commands && manifest.commands["last-used-window"]) {
+            manifest.commands["last-used-window"]["suggested_key"] = undefined;
+        }
         break;
 }
 manifest.version = Ext.EXT_VERSION;

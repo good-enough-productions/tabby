@@ -1,3 +1,4 @@
+console.log("HELLO WORLD");
 // window.workers = [];
 // window.__workersReady = 0;
 // // Setup workers
@@ -1434,7 +1435,13 @@ class TUITabsList extends TUIListDataInterpret {
         this.sess = sess;
         this.details = detailsController;
         this.list = undefined;
+        console.log("Tabby: Checking view mode. Path:", window.location.pathname);
+        this.isTabView = window.location.pathname.includes("tab.html");
+        console.log("Tabby: isTabView =", this.isTabView);
+        // FORCE ENABLE FOR DEBUGGING
         this.injectGridStyles();
+        document.body.style.border = "5px solid red"; // Debug indicator
+
     }
     injectGridStyles() {
         const style = document.createElement('style');
@@ -1636,11 +1643,13 @@ class TUITabsList extends TUIListDataInterpret {
             });
             entry.appendChild(tmp);
 
-            let previewImg = document.createElement("img");
-            previewImg.className = "tab-preview-thumbnail";
-            // previewImg.src = "icons/tabbytoo-32.png"; // Placeholder
-            entry.appendChild(previewImg);
-            this._updatePreview(previewImg, data.id);
+            if (this.isTabView) {
+                let previewImg = document.createElement("img");
+                previewImg.className = "tab-preview-thumbnail";
+                // previewImg.src = "icons/tabbytoo-32.png"; // Placeholder
+                entry.appendChild(previewImg);
+                this._updatePreview(previewImg, data.id);
+            }
 
             tmp = document.createElement("img");
             tmp.className = "favicon";
@@ -2574,3 +2583,4 @@ document.addEventListener("keydown", (evt) => {
         closeTabby();
     }
 });
+console.log("ANTIGRAVITY_END_MARKER");
