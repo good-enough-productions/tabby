@@ -5,7 +5,7 @@
 import "Polyfill";
 import { TTabActions } from "../tapi/taction";
 
-let _captureTabAbortController;
+let _captureTabControllers = new Map();
 let _previewCache = {};
 let _previewCacheLoadPromise;
 let _tabMeta = {};
@@ -128,19 +128,24 @@ async function ensurePinnedDashboard(windowId, tabId) {
 }
 
 async function captureTab(tabId, quality) {
-    if (_captureTabAbortController) {
-        _captureTabAbortController.abort();
+    if (_captureTabControllers.has(tabId)) {
+        _captureTabControllers.get(tabId).abort();
     }
-    _captureTabAbortController = new AbortController();
-    const signal = _captureTabAbortController.signal;
+    let controller = new AbortController();
+    _captureTabControllers.set(tabId, controller);
+    const signal = controller.signal;
     try {
         let dataURI = await new TTabActions(tabId).captureTab(signal, quality);
+        _captureTabControllers.delete(tabId);
         if (dataURI) {
             return dataURI;
         } else {
             return undefined;
         }
-    } catch (e) { throw new AbortError("captureTab aborted"); }
+    } catch (e) {
+        _captureTabControllers.delete(tabId);
+        throw new AbortError("captureTab aborted");
+    }
 }
 
 async function refreshPreviewCache(tabId, quality=PREVIEW_QUALITY, force=false) {
@@ -250,4 +255,122 @@ browser.tabs.onRemoved.addListener(tabId => {
     persistTabMeta();
 });
 
+// ============================================================
+// Session history: auto-save window contents on close
+// ============================================================
+const SESSION_HISTORY_KEY = "tabby-session-history-v1";
+const SESSION_AUTOSAVE_KEY = "tabby-session-autosave-v1";
+let _sessionHistory = null;
+let _sessionHistoryLoadPromise = null;
+const _windowTabsCache = new Map();
+
+function _sessionDateKey(ts) {
+    // "YYYY-MM-DD" in the local timezone
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+async function _ensureSessionHistoryLoaded() {
+    if (!_sessionHistoryLoadPromise) {
+        _sessionHistoryLoadPromise = browser.storage.local.get(SESSION_HISTORY_KEY).then(result => {
+            _sessionHistory = result[SESSION_HISTORY_KEY] || [];
+        });
+    }
+    await _sessionHistoryLoadPromise;
+}
+
+async function _persistSessionHistory() {
+    await browser.storage.local.set({ [SESSION_HISTORY_KEY]: _sessionHistory });
+}
+
+async function _saveWindowAsSession(tabs) {
+    const { [SESSION_AUTOSAVE_KEY]: autosave } = await browser.storage.local.get(SESSION_AUTOSAVE_KEY);
+    if (autosave === false) return;
+    if (!tabs || tabs.length === 0) return;
+    await _ensureSessionHistoryLoaded();
+
+    const now = Date.now();
+    const dateKey = _sessionDateKey(now);
+    const entryTabs = tabs
+        .map(tab => ({
+            title: tab.title || "",
+            url: tab.url || tab.pendingUrl || "",
+            favIconUrl: tab.favIconUrl || ""
+        }))
+        .filter(t => {
+            if (!t.url) return false;
+            const u = t.url;
+            return !u.startsWith(NEWTAB_URL)
+                && !u.startsWith("about:")
+                && !u.startsWith("chrome://")
+                && !u.startsWith("edge://")
+                && !u.startsWith("moz-extension://");
+        });
+
+    if (entryTabs.length === 0) return;
+
+    const entry = { savedAt: now, dateKey, tabs: entryTabs };
+    // One entry per calendar day; newest entry wins for that day; keep max 3
+    let history = (_sessionHistory || []).filter(e => e.dateKey !== dateKey);
+    history.unshift(entry);
+    _sessionHistory = history.slice(0, 3);
+    await _persistSessionHistory();
+}
+
+function _updateWindowTabsCache(windowId) {
+    browser.tabs.query({ windowId }).then(tabs => {
+        if (tabs && tabs.length > 0) {
+            _windowTabsCache.set(windowId, tabs);
+        }
+    }).catch(() => {});
+}
+
+async function _seedWindowTabsCache() {
+    try {
+        const windows = await browser.windows.getAll({ populate: true, windowTypes: ["normal"] });
+        for (const win of windows) {
+            if (win.tabs && win.tabs.length > 0) {
+                _windowTabsCache.set(win.id, win.tabs);
+            }
+        }
+    } catch (e) {
+        // ignore if windows API unavailable
+    }
+}
+
+// Keep cache current so we have a snapshot ready when a window closes
+browser.tabs.onCreated.addListener(tab => {
+    if (tab.windowId) _updateWindowTabsCache(tab.windowId);
+});
+browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (tab && tab.windowId && (changeInfo.url || changeInfo.title || changeInfo.status === "complete")) {
+        _updateWindowTabsCache(tab.windowId);
+    }
+});
+browser.tabs.onRemoved.addListener((tabId, removeInfo) => {
+    // Only refresh cache for tab removals that don't close the whole window
+    if (!removeInfo.isWindowClosing && removeInfo.windowId) {
+        _updateWindowTabsCache(removeInfo.windowId);
+    }
+});
+browser.windows.onRemoved.addListener(windowId => {
+    const tabs = _windowTabsCache.get(windowId);
+    _windowTabsCache.delete(windowId);
+    if (tabs) {
+        _saveWindowAsSession(tabs).catch(e => console.error("tabby: failed to save session:", e));
+    }
+});
+
+browser.runtime.onMessage.addListener(message => {
+    if (message["_"] !== "sessions:getHistory") return;
+    return _ensureSessionHistoryLoaded().then(() => _sessionHistory || []);
+});
+browser.runtime.onMessage.addListener(message => {
+    if (message["_"] !== "sessions:setAutosave") return;
+    // Invalidate in-memory load promise so the next save re-reads the new setting
+    _sessionHistoryLoadPromise = null;
+    return browser.storage.local.set({ [SESSION_AUTOSAVE_KEY]: message.enabled });
+});
+
 seedTabMetaForOpenTabs();
+_seedWindowTabsCache();

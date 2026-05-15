@@ -11,9 +11,10 @@ const PREVIEW_QUALITY = {
     scale: 0.2
 };
 
-const OPTION_SHOW_PREVIEW_DETAILS = "option:newtab-show-preview-details";
+const OPTION_DETAIL_MODE = "option:newtab-detail-mode";
 const OPTION_STICKY_CONTROLS = "option:newtab-sticky-controls";
 const OPTION_KEEP_PINNED = "option:newtab-keep-pinned";
+const SESSION_AUTOSAVE_KEY = "tabby-session-autosave-v1";
 
 const SORT_MODES = {
     browser: "Browser order",
@@ -40,6 +41,7 @@ let tabMeta = {};
 let bookmarkState = {};
 let tabState = [];
 let dragTabId;
+let bookmarkBarFolders = [];
 
 const selectionState = {
     active: false,
@@ -51,7 +53,8 @@ const viewState = {
     statusFilter: "all",
     domainFilter: "all",
     sortMode: "browser",
-    showPreviewDetails: resolveDefault(OPTION_SHOW_PREVIEW_DETAILS),
+    detailMode: resolveDefault(OPTION_DETAIL_MODE),
+    controlsExpanded: false,
     stickyControls: resolveDefault(OPTION_STICKY_CONTROLS),
     keepPinned: resolveDefault(OPTION_KEEP_PINNED),
     settingsOpen: false,
@@ -72,13 +75,13 @@ async function saveDashboardSetting(optionID, value) {
 }
 
 async function loadDashboardSettings() {
-    let [showPreviewDetails, stickyControls, keepPinned] = await Promise.all([
-        loadDashboardSetting(OPTION_SHOW_PREVIEW_DETAILS),
+    let [detailMode, stickyControls, keepPinned] = await Promise.all([
+        loadDashboardSetting(OPTION_DETAIL_MODE),
         loadDashboardSetting(OPTION_STICKY_CONTROLS),
         loadDashboardSetting(OPTION_KEEP_PINNED)
     ]);
 
-    viewState.showPreviewDetails = showPreviewDetails;
+    viewState.detailMode = detailMode;
     viewState.stickyControls = stickyControls;
     viewState.keepPinned = keepPinned;
 }
@@ -347,6 +350,47 @@ style.textContent = `
     .tabby-card:hover {
         transform: translateY(-2px);
         box-shadow: var(--tabby-shadow-strong);
+    }
+
+    .tabby-close-overlay {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        border: none;
+        background: rgba(13, 27, 45, 0.55);
+        color: #fff;
+        font-size: 15px;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 120ms ease, background 120ms ease;
+        z-index: 3;
+        backdrop-filter: blur(4px);
+    }
+
+    .tabby-card:hover .tabby-close-overlay {
+        opacity: 1;
+    }
+
+    .tabby-close-overlay:hover {
+        background: rgba(190, 30, 45, 0.82);
+    }
+
+    .tabby-minimal-title {
+        padding: 10px 14px 4px;
+        font-weight: 700;
+        font-size: 13px;
+        line-height: 1.35;
+        color: var(--tabby-ink);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .tabby-card.-preview-only .tabby-card-main {
@@ -697,6 +741,131 @@ style.textContent = `
             max-height: calc(100vh - 32px);
         }
     }
+
+    .tabby-detail-seg {
+        display: inline-flex;
+        border-radius: 999px;
+        border: 1px solid var(--tabby-border);
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: var(--tabby-shadow);
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+
+    .tabby-detail-seg-btn {
+        padding: 10px 14px;
+        border: none;
+        border-left: 1px solid var(--tabby-border);
+        background: transparent;
+        color: var(--tabby-ink);
+        font: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 100ms ease, color 100ms ease;
+    }
+
+    .tabby-detail-seg-btn:first-child {
+        border-left: none;
+    }
+
+    .tabby-detail-seg-btn.-active {
+        background: #17324d;
+        color: #f8fbff;
+    }
+
+    .tabby-detail-seg.-stretch {
+        width: 100%;
+        border-radius: 14px;
+    }
+
+    .tabby-detail-seg.-stretch .tabby-detail-seg-btn {
+        flex: 1;
+        text-align: center;
+        padding: 10px 8px;
+    }
+
+    .tabby-hero-collapsible-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .tabby-expand-btn {
+        display: none;
+    }
+
+    .tabby-top-panel-inner.-collapsed .tabby-hero-copy,
+    .tabby-top-panel-inner.-collapsed .tabby-hero-collapsible-actions,
+    .tabby-top-panel-inner.-collapsed .tabby-toolbar,
+    .tabby-top-panel-inner.-collapsed .tabby-meta-bar {
+        display: none;
+    }
+
+    .tabby-top-panel-inner.-collapsed .tabby-hero {
+        margin-bottom: 0;
+    }
+
+    .tabby-top-panel-inner.-collapsed .tabby-expand-btn {
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .tabby-setting-row.-stacked {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .tabby-select.-inline {
+        width: auto;
+        flex-shrink: 0;
+    }
+
+    .tabby-session-list {
+        margin-top: 8px;
+    }
+
+    .tabby-session-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 0;
+        border-top: 1px solid rgba(109, 133, 160, 0.14);
+    }
+
+    .tabby-session-card:first-child {
+        border-top: none;
+        padding-top: 0;
+    }
+
+    .tabby-session-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .tabby-session-date {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--tabby-ink);
+        margin-bottom: 2px;
+    }
+
+    .tabby-session-count {
+        font-size: 12px;
+        color: var(--tabby-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .tabby-session-empty {
+        color: var(--tabby-muted);
+        font-size: 13px;
+        padding: 4px 0;
+    }
 `;
 document.head.appendChild(style);
 
@@ -734,22 +903,25 @@ subheading.title = "Most actions happen directly from the dashboard cards; setti
 const heroActions = document.createElement("div");
 heroActions.className = "tabby-hero-actions";
 
-const detailsToggleLabel = document.createElement("label");
-detailsToggleLabel.className = "tabby-inline-toggle";
-detailsToggleLabel.title = "Toggle between screenshot-only cards and full preview details with metadata and action buttons.";
+const detailModeSelector = document.createElement("div");
+detailModeSelector.className = "tabby-detail-seg";
+detailModeSelector.title = "Card detail level: No details = screenshot only (controls collapse), Minimal = adds action buttons, Full = adds URL, title, and badges.";
 
-const detailsToggleInput = document.createElement("input");
-detailsToggleInput.type = "checkbox";
-
-const detailsToggleTrack = document.createElement("span");
-detailsToggleTrack.className = "tabby-toggle-track";
-
-const detailsToggleText = document.createElement("span");
-detailsToggleText.textContent = "Show preview details";
-
-detailsToggleLabel.appendChild(detailsToggleInput);
-detailsToggleLabel.appendChild(detailsToggleTrack);
-detailsToggleLabel.appendChild(detailsToggleText);
+const detailModeButtons = {};
+for (let [value, label, btnTitle] of [
+    ["none", "No details", "Screenshot only \u2014 top controls also collapse to a single icon"],
+    ["minimal", "Minimal", "Screenshot plus Open, Pin, Reload, Recapture, and Close action buttons"],
+    ["full", "Full", "Action buttons plus URL, title, status pill, and information badges"]
+]) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "tabby-detail-seg-btn";
+    btn.textContent = label;
+    btn.title = btnTitle;
+    btn.dataset.mode = value;
+    detailModeSelector.appendChild(btn);
+    detailModeButtons[value] = btn;
+}
 
 const recaptureButton = document.createElement("button");
 recaptureButton.type = "button";
@@ -792,10 +964,42 @@ heroCopy.appendChild(eyebrow);
 heroCopy.appendChild(heading);
 heroCopy.appendChild(subheading);
 hero.appendChild(heroCopy);
-heroActions.appendChild(detailsToggleLabel);
-heroActions.appendChild(recaptureButton);
+
+const bookmarkFolderSelect = document.createElement("select");
+bookmarkFolderSelect.className = "tabby-select -inline";
+bookmarkFolderSelect.title = "Choose which bookmark folder to draw random tabs from.";
+const bookmarkFolderDefaultOption = document.createElement("option");
+bookmarkFolderDefaultOption.value = "";
+bookmarkFolderDefaultOption.textContent = "Bookmark folder\u2026";
+bookmarkFolderDefaultOption.disabled = true;
+bookmarkFolderDefaultOption.selected = true;
+bookmarkFolderSelect.appendChild(bookmarkFolderDefaultOption);
+
+const openRandomButton = document.createElement("button");
+openRandomButton.type = "button";
+openRandomButton.className = "tabby-button -disabled";
+openRandomButton.textContent = "Open 10 random";
+openRandomButton.title = "Open 10 bookmarks chosen at random from the selected folder.";
+openRandomButton.disabled = true;
+
+const heroCollapsibleActions = document.createElement("div");
+heroCollapsibleActions.className = "tabby-hero-collapsible-actions";
+heroCollapsibleActions.appendChild(detailModeSelector);
+heroCollapsibleActions.appendChild(recaptureButton);
+heroCollapsibleActions.appendChild(resetFiltersButton);
+heroCollapsibleActions.appendChild(bookmarkFolderSelect);
+heroCollapsibleActions.appendChild(openRandomButton);
+
+const expandControlsButton = document.createElement("button");
+expandControlsButton.type = "button";
+expandControlsButton.className = "tabby-button -secondary -icon tabby-expand-btn";
+expandControlsButton.textContent = "\u2261";
+expandControlsButton.setAttribute("aria-label", "Show dashboard controls");
+expandControlsButton.title = "Expand controls. Detail mode is set to No details.";
+
+heroActions.appendChild(heroCollapsibleActions);
 heroActions.appendChild(recaptureMenu);
-heroActions.appendChild(resetFiltersButton);
+heroActions.appendChild(expandControlsButton);
 heroActions.appendChild(settingsButton);
 hero.appendChild(heroActions);
 
@@ -950,11 +1154,36 @@ function createSettingsToggleRow(labelText, helpText, titleText) {
     };
 }
 
-const settingsDetailsRow = createSettingsToggleRow(
-    "Show preview details",
-    "When off, cards collapse to the screenshot only. When on, cards show metadata, badges, and action buttons.",
-    "Persist the card density preference across windows and restarts."
-);
+const settingsDetailModeRow = document.createElement("div");
+settingsDetailModeRow.className = "tabby-setting-row -stacked";
+settingsDetailModeRow.title = "Persist the card detail level preference across windows and restarts.";
+
+const settingsDetailCopy = document.createElement("div");
+settingsDetailCopy.className = "tabby-setting-copy";
+const settingsDetailLabel = document.createElement("strong");
+settingsDetailLabel.textContent = "Card detail level";
+const settingsDetailHelp = document.createElement("span");
+settingsDetailHelp.textContent = "No details: screenshot only, controls collapse to an icon. Minimal: adds action buttons. Full: adds URL, title, and badges.";
+settingsDetailCopy.appendChild(settingsDetailLabel);
+settingsDetailCopy.appendChild(settingsDetailHelp);
+
+const settingsDetailSeg = document.createElement("div");
+settingsDetailSeg.className = "tabby-detail-seg -stretch";
+
+const settingsDetailModeButtons = {};
+for (let [value, label] of [["none", "No details"], ["minimal", "Minimal"], ["full", "Full"]]) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "tabby-detail-seg-btn";
+    btn.textContent = label;
+    btn.dataset.mode = value;
+    settingsDetailSeg.appendChild(btn);
+    settingsDetailModeButtons[value] = btn;
+}
+
+settingsDetailModeRow.appendChild(settingsDetailCopy);
+settingsDetailModeRow.appendChild(settingsDetailSeg);
+
 const settingsStickyRow = createSettingsToggleRow(
     "Keep top controls sticky",
     "Pin the dashboard controls to the top of the page so search, recapture, and settings stay visible while scrolling.",
@@ -966,7 +1195,7 @@ const settingsPinnedRow = createSettingsToggleRow(
     "Toggle whether Tabby should keep the dashboard pinned in the current window."
 );
 
-settingsTogglesSection.appendChild(settingsDetailsRow.row);
+settingsTogglesSection.appendChild(settingsDetailModeRow);
 settingsTogglesSection.appendChild(settingsStickyRow.row);
 settingsTogglesSection.appendChild(settingsPinnedRow.row);
 
@@ -997,8 +1226,34 @@ settingsGuideSection.appendChild(settingsGuideHeading);
 settingsGuideSection.appendChild(settingsGuideCopy);
 settingsGuideSection.appendChild(settingsGuideList);
 
+// Session history section
+const settingsSessionSection = document.createElement("section");
+settingsSessionSection.className = "tabby-settings-section";
+
+const settingsSessionHeading = document.createElement("h3");
+settingsSessionHeading.textContent = "Session history";
+
+const settingsSessionDesc = document.createElement("p");
+settingsSessionDesc.className = "tabby-settings-copy";
+settingsSessionDesc.textContent = "Tabby saves a snapshot of each window you close, one entry per day, up to 3 recent days. Use Restore to reopen a saved session in a new window.";
+
+const settingsAutosaveRow = createSettingsToggleRow(
+    "Auto-save closed windows",
+    "Automatically snapshot your open tabs when a browser window is closed.",
+    "Enable or disable automatic session saving."
+);
+
+const sessionHistoryList = document.createElement("div");
+sessionHistoryList.className = "tabby-session-list";
+
+settingsSessionSection.appendChild(settingsSessionHeading);
+settingsSessionSection.appendChild(settingsSessionDesc);
+settingsSessionSection.appendChild(settingsAutosaveRow.row);
+settingsSessionSection.appendChild(sessionHistoryList);
+
 settingsPanel.appendChild(settingsHeader);
 settingsPanel.appendChild(settingsTogglesSection);
+settingsPanel.appendChild(settingsSessionSection);
 settingsPanel.appendChild(settingsGuideSection);
 
 topPanelInner.appendChild(hero);
@@ -1143,8 +1398,15 @@ function getFilteredSortedTabs() {
 }
 
 function syncDashboardChrome() {
-    detailsToggleInput.checked = viewState.showPreviewDetails;
-    settingsDetailsRow.input.checked = viewState.showPreviewDetails;
+    for (let [mode, btn] of Object.entries(detailModeButtons)) {
+        btn.classList.toggle("-active", mode === viewState.detailMode);
+    }
+    for (let [mode, btn] of Object.entries(settingsDetailModeButtons)) {
+        btn.classList.toggle("-active", mode === viewState.detailMode);
+    }
+    let isCollapsed = viewState.detailMode === "none" && !viewState.controlsExpanded;
+    topPanelInner.classList.toggle("-collapsed", isCollapsed);
+
     settingsStickyRow.input.checked = viewState.stickyControls;
     settingsPinnedRow.input.checked = viewState.keepPinned;
 
@@ -1168,10 +1430,13 @@ function closeMenus() {
     syncDashboardChrome();
 }
 
-async function setShowPreviewDetails(value) {
-    viewState.showPreviewDetails = value;
+async function setDetailMode(value) {
+    viewState.detailMode = value;
+    if (value !== "none") {
+        viewState.controlsExpanded = false;
+    }
     syncDashboardChrome();
-    await saveDashboardSetting(OPTION_SHOW_PREVIEW_DETAILS, value);
+    await saveDashboardSetting(OPTION_DETAIL_MODE, value);
     renderVisibleTabs();
 }
 
@@ -1288,7 +1553,7 @@ function renderTabCard(tab) {
     article.dataset.tabId = tab.id;
     article.draggable = viewState.sortMode === "browser" && !selectionState.active;
 
-    if (!viewState.showPreviewDetails) {
+    if (viewState.detailMode === "none") {
         article.classList.add("-preview-only");
     }
     if (selectionState.active) {
@@ -1304,9 +1569,27 @@ function renderTabCard(tab) {
     button.title = selectionState.active
         ? `Select ${tab.title || getDisplayUrl(tab)} for recapture`
         : `Switch to ${tab.title || getDisplayUrl(tab)}`;
-    button.appendChild(buildPreviewMedia(tab));
+    const previewContainer = document.createElement("div");
+    previewContainer.style.position = "relative";
+    previewContainer.appendChild(buildPreviewMedia(tab));
 
-    if (viewState.showPreviewDetails) {
+    if (!selectionState.active) {
+        const closeOverlay = document.createElement("button");
+        closeOverlay.type = "button";
+        closeOverlay.className = "tabby-close-overlay";
+        closeOverlay.textContent = "\u00d7";
+        closeOverlay.title = `Close ${tab.title || getDisplayUrl(tab)}`;
+        closeOverlay.setAttribute("aria-label", `Close ${tab.title || getDisplayUrl(tab)}`);
+        closeOverlay.addEventListener("click", event => {
+            event.stopPropagation();
+            closeTab(tab).catch(error => setStatus(`Failed to close tab: ${error}`));
+        });
+        previewContainer.appendChild(closeOverlay);
+    }
+
+    button.appendChild(previewContainer);
+
+    if (viewState.detailMode === "full") {
         const metaRow = document.createElement("div");
         metaRow.className = "tabby-meta-row";
 
@@ -1352,6 +1635,14 @@ function renderTabCard(tab) {
         button.appendChild(badges);
     }
 
+    if (viewState.detailMode === "minimal") {
+        const minimalTitle = document.createElement("div");
+        minimalTitle.className = "tabby-minimal-title";
+        minimalTitle.textContent = tab.title || tab.pendingUrl || tab.url || "Untitled tab";
+        minimalTitle.title = tab.title || tab.pendingUrl || tab.url || "Untitled tab";
+        button.appendChild(minimalTitle);
+    }
+
     button.addEventListener("click", async event => {
         event.preventDefault();
         if (selectionState.active) {
@@ -1363,14 +1654,12 @@ function renderTabCard(tab) {
 
     article.appendChild(button);
 
-    if (viewState.showPreviewDetails && !selectionState.active) {
+    if (viewState.detailMode !== "none" && !selectionState.active) {
         const actions = document.createElement("div");
         actions.className = "tabby-action-row";
-        actions.appendChild(createActionButton("Open", "Activate this tab", () => activateTab(tab)));
         actions.appendChild(createActionButton(tab.pinned ? "Unpin" : "Pin", "Toggle pin state", () => togglePin(tab)));
         actions.appendChild(createActionButton("Reload", "Reload the page and refresh its preview cache", () => reloadTab(tab)));
         actions.appendChild(createActionButton("Recapture", "Force a new preview screenshot", () => recaptureTab(tab)));
-        actions.appendChild(createActionButton("Close", "Close this tab", () => closeTab(tab)));
         article.appendChild(actions);
     }
 
@@ -1412,26 +1701,34 @@ async function getBookmarkStateForTabs(tabs) {
 }
 
 async function updatePreviewCacheForTabs(tabs) {
-    previewCache = await browser.runtime.sendMessage({
-        _: "preview:getCached",
-        tabIds: tabs.map(tab => tab.id)
-    });
+    try {
+        previewCache = await browser.runtime.sendMessage({
+            _: "preview:getCached",
+            tabIds: tabs.map(tab => tab.id)
+        }) || {};
+    } catch (e) {
+        previewCache = previewCache || {};
+    }
 
     let missingTabs = tabs
         .filter(tab => !tab.discarded && !previewCache[tab.id]?.src)
         .map(tab => tab.id);
 
     if (missingTabs.length > 0) {
-        let captured = await browser.runtime.sendMessage({
-            _: "preview:ensureMany",
-            tabIds: missingTabs,
-            quality: PREVIEW_QUALITY,
-            force: false
-        });
-        previewCache = {
-            ...previewCache,
-            ...captured
-        };
+        try {
+            let captured = await browser.runtime.sendMessage({
+                _: "preview:ensureMany",
+                tabIds: missingTabs,
+                quality: PREVIEW_QUALITY,
+                force: false
+            });
+            previewCache = {
+                ...previewCache,
+                ...(captured || {})
+            };
+        } catch (e) {
+            // keep existing cache on failure
+        }
     }
 }
 
@@ -1639,17 +1936,22 @@ function renderVisibleTabs() {
 async function renderTabs() {
     tabState = await getVisibleTabs();
     renderedTabIds = tabState.map(tab => tab.id);
-    let [tabMetaResult, bookmarkStateResult] = await Promise.all([
-        browser.runtime.sendMessage({
-            _: "tabs:getMeta",
-            tabIds: tabState.map(tab => tab.id)
-        }),
-        getBookmarkStateForTabs(tabState)
-    ]);
+
+    // Kick off bookmark lookup in background — don't block the initial render on it
+    let bookmarkStatePromise = getBookmarkStateForTabs(tabState);
+
+    let tabMetaResult = await browser.runtime.sendMessage({
+        _: "tabs:getMeta",
+        tabIds: tabState.map(tab => tab.id)
+    }).catch(() => {});
     tabMeta = tabMetaResult || {};
-    bookmarkState = bookmarkStateResult || {};
+
     await updatePreviewCacheForTabs(tabState);
     updateDomainFilterOptions(tabState);
+    renderVisibleTabs();
+
+    // Re-render once bookmark state resolves so badges are accurate
+    bookmarkState = await bookmarkStatePromise.catch(() => {}) || {};
     renderVisibleTabs();
 }
 
@@ -1703,16 +2005,200 @@ async function ensurePinnedDashboard() {
     }
 }
 
-detailsToggleInput.addEventListener("change", event => {
-    setShowPreviewDetails(event.target.checked).catch(error => {
-        setStatus(`Failed to change card density: ${error}`);
-    });
-});
+// ============================================================
+// Bookmark folder detection + random opener
+// ============================================================
 
-settingsDetailsRow.input.addEventListener("change", event => {
-    setShowPreviewDetails(event.target.checked).catch(error => {
-        setStatus(`Failed to change card density: ${error}`);
+async function loadBookmarkBarFolders() {
+    if (!browser.bookmarks?.getTree) return;
+    try {
+        const tree = await browser.bookmarks.getTree();
+        const root = tree[0];
+        let toolbarNode = null;
+        for (const child of (root.children || [])) {
+            const title = (child.title || "").toLowerCase();
+            if (
+                child.id === "toolbar_____" ||   // Firefox
+                child.id === "1" ||               // Chrome
+                title.includes("toolbar") ||
+                title.includes("bookmarks bar")
+            ) {
+                toolbarNode = child;
+                break;
+            }
+        }
+        if (!toolbarNode) toolbarNode = root;
+
+        bookmarkBarFolders = (toolbarNode.children || []).filter(
+            n => !n.url && Array.isArray(n.children)
+        );
+    } catch (e) {
+        bookmarkBarFolders = [];
+    }
+
+    bookmarkFolderSelect.replaceChildren();
+    const defaultOpt = document.createElement("option");
+    defaultOpt.value = "";
+    defaultOpt.textContent = bookmarkBarFolders.length === 0
+        ? "No bookmark folders found"
+        : "Bookmark folder\u2026";
+    defaultOpt.disabled = true;
+    defaultOpt.selected = true;
+    bookmarkFolderSelect.appendChild(defaultOpt);
+
+    for (const folder of bookmarkBarFolders) {
+        const opt = document.createElement("option");
+        opt.value = folder.id;
+        opt.textContent = folder.title || "Untitled folder";
+        bookmarkFolderSelect.appendChild(opt);
+    }
+}
+
+function _collectBookmarkUrls(nodes) {
+    let urls = [];
+    for (const node of nodes) {
+        if (node.url) {
+            urls.push(node.url);
+        } else if (node.children) {
+            urls.push(..._collectBookmarkUrls(node.children));
+        }
+    }
+    return urls;
+}
+
+function _pickRandom(arr, count) {
+    const pool = [...arr];
+    const result = [];
+    while (result.length < count && pool.length > 0) {
+        const i = Math.floor(Math.random() * pool.length);
+        result.push(pool.splice(i, 1)[0]);
+    }
+    return result;
+}
+
+async function openRandomBookmarks() {
+    const folderId = bookmarkFolderSelect.value;
+    if (!folderId) {
+        setStatus("Select a bookmark folder first.");
+        return;
+    }
+    const subtree = await browser.bookmarks.getSubTree(folderId);
+    const folderTitle = subtree[0]?.title || "folder";
+    const urls = _collectBookmarkUrls(subtree[0]?.children || []);
+    if (urls.length === 0) {
+        setStatus(`No bookmarks found in "${folderTitle}".`);
+        return;
+    }
+    const selected = _pickRandom(urls, 10);
+    await Promise.all(selected.map(url => browser.tabs.create({ url, active: false })));
+    setStatus(`Opened ${selected.length} random bookmark${selected.length === 1 ? "" : "s"} from "${folderTitle}".`);
+}
+
+// ============================================================
+// Session history
+// ============================================================
+
+async function renderSessionHistory() {
+    sessionHistoryList.replaceChildren();
+    const loading = document.createElement("div");
+    loading.className = "tabby-session-empty";
+    loading.textContent = "Loading\u2026";
+    sessionHistoryList.appendChild(loading);
+
+    try {
+        const [sessions, autosaveResult] = await Promise.all([
+            browser.runtime.sendMessage({ _: "sessions:getHistory" }),
+            browser.storage.local.get(SESSION_AUTOSAVE_KEY)
+        ]);
+        const autosaveEnabled = autosaveResult[SESSION_AUTOSAVE_KEY] !== false;
+        settingsAutosaveRow.input.checked = autosaveEnabled;
+
+        sessionHistoryList.replaceChildren();
+
+        if (!sessions || sessions.length === 0) {
+            const empty = document.createElement("div");
+            empty.className = "tabby-session-empty";
+            empty.textContent = autosaveEnabled
+                ? "No sessions saved yet. Close a window to save your first snapshot."
+                : "Auto-save is off. Enable it above to start saving sessions.";
+            sessionHistoryList.appendChild(empty);
+            return;
+        }
+
+        for (const session of sessions) {
+            const card = document.createElement("div");
+            card.className = "tabby-session-card";
+
+            const info = document.createElement("div");
+            info.className = "tabby-session-info";
+
+            const dateDiv = document.createElement("div");
+            dateDiv.className = "tabby-session-date";
+            dateDiv.textContent = new Date(session.savedAt).toLocaleDateString([], {
+                weekday: "short", month: "short", day: "numeric"
+            });
+
+            const countDiv = document.createElement("div");
+            countDiv.className = "tabby-session-count";
+            const sampleTitles = session.tabs.slice(0, 3).map(t => t.title || t.url).join(", ");
+            const extra = session.tabs.length > 3 ? ` +${session.tabs.length - 3} more` : "";
+            countDiv.textContent = `${session.tabs.length} tab${session.tabs.length === 1 ? "" : "s"} \u2014 ${sampleTitles}${extra}`;
+            countDiv.title = session.tabs.map(t => t.title || t.url).join("\n");
+
+            info.appendChild(dateDiv);
+            info.appendChild(countDiv);
+
+            const restoreBtn = document.createElement("button");
+            restoreBtn.type = "button";
+            restoreBtn.className = "tabby-button -secondary";
+            restoreBtn.textContent = "Restore";
+            restoreBtn.title = `Open these ${session.tabs.length} tabs in a new window.`;
+            restoreBtn.addEventListener("click", () => {
+                restoreSession(session).catch(e => setStatus(`Failed to restore session: ${e}`));
+            });
+
+            card.appendChild(info);
+            card.appendChild(restoreBtn);
+            sessionHistoryList.appendChild(card);
+        }
+    } catch (e) {
+        sessionHistoryList.replaceChildren();
+        const err = document.createElement("div");
+        err.className = "tabby-session-empty";
+        err.textContent = "Could not load session history.";
+        sessionHistoryList.appendChild(err);
+    }
+}
+
+async function restoreSession(session) {
+    if (!session.tabs || session.tabs.length === 0) return;
+    const urls = session.tabs.map(t => t.url).filter(Boolean);
+    if (urls.length === 0) return;
+    const newWindow = await browser.windows.create({ url: urls[0] });
+    await Promise.all(
+        urls.slice(1).map(url => browser.tabs.create({ windowId: newWindow.id, url, active: false }))
+    );
+    setStatus(`Restored ${urls.length} tab${urls.length === 1 ? "" : "s"} in a new window.`);
+}
+
+for (let btn of Object.values(detailModeButtons)) {
+    btn.addEventListener("click", () => {
+        setDetailMode(btn.dataset.mode).catch(error => {
+            setStatus(`Failed to change card detail level: ${error}`);
+        });
     });
+}
+for (let btn of Object.values(settingsDetailModeButtons)) {
+    btn.addEventListener("click", () => {
+        setDetailMode(btn.dataset.mode).catch(error => {
+            setStatus(`Failed to change card detail level: ${error}`);
+        });
+    });
+}
+expandControlsButton.addEventListener("click", event => {
+    event.stopPropagation();
+    viewState.controlsExpanded = !viewState.controlsExpanded;
+    syncDashboardChrome();
 });
 
 settingsStickyRow.input.addEventListener("change", event => {
@@ -1769,6 +2255,9 @@ settingsButton.addEventListener("click", event => {
     viewState.settingsOpen = !viewState.settingsOpen;
     viewState.recaptureMenuOpen = false;
     syncDashboardChrome();
+    if (viewState.settingsOpen) {
+        renderSessionHistory().catch(() => {});
+    }
 });
 
 settingsCloseButton.addEventListener("click", () => {
@@ -1777,6 +2266,23 @@ settingsCloseButton.addEventListener("click", () => {
 
 settingsScrim.addEventListener("click", () => {
     closeMenus();
+});
+
+bookmarkFolderSelect.addEventListener("change", () => {
+    const hasValue = !!bookmarkFolderSelect.value;
+    openRandomButton.disabled = !hasValue;
+    openRandomButton.classList.toggle("-disabled", !hasValue);
+});
+
+openRandomButton.addEventListener("click", () => {
+    openRandomBookmarks().catch(e => setStatus(`Failed to open random bookmarks: ${e}`));
+});
+
+settingsAutosaveRow.input.addEventListener("change", event => {
+    const enabled = event.target.checked;
+    browser.storage.local.set({ [SESSION_AUTOSAVE_KEY]: enabled })
+        .then(() => browser.runtime.sendMessage({ _: "sessions:setAutosave", enabled }))
+        .catch(e => setStatus(`Failed to save autosave setting: ${e}`));
 });
 
 searchInput.addEventListener("input", event => {
@@ -1854,7 +2360,7 @@ async function initializeDashboard() {
     if (viewState.keepPinned) {
         await ensurePinnedDashboard();
     }
-    await renderTabs();
+    await Promise.all([renderTabs(), loadBookmarkBarFolders()]);
 }
 
 initializeDashboard().catch(error => {

@@ -12,7 +12,7 @@ let defaults = {
     "option:dont-clear-search": true,
     "option:show-whats-new-on": "major-update",
     "option:separate-save": false,
-    "option:newtab-show-preview-details": false,
+    "option:newtab-detail-mode": "minimal",
     "option:newtab-sticky-controls": true,
     "option:newtab-keep-pinned": true
 };
