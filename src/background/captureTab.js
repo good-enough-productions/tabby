@@ -148,11 +148,17 @@ async function captureTab(tabId, quality) {
     }
 }
 
+const UNCAPTURABLE_SCHEMES = ["about:", "chrome:", "moz-extension:", "chrome-extension:", "data:", "javascript:"];
+
 async function refreshPreviewCache(tabId, quality=PREVIEW_QUALITY, force=false) {
     await ensurePreviewCacheLoaded();
     try {
         let tab = await browser.tabs.get(tabId);
         if (tab.discarded) {
+            return _previewCache[tabId];
+        }
+        let url = tab.url || tab.pendingUrl || "";
+        if (!url || UNCAPTURABLE_SCHEMES.some(scheme => url.startsWith(scheme))) {
             return _previewCache[tabId];
         }
         if (!force && _previewCache[tabId]?.src) {

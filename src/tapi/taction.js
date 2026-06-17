@@ -37,7 +37,7 @@ export class TTabActions {
             return new Promise((resolve, reject) => {
                 browser.tabs.captureTab(this.ids[0], quality).then((dataURI) => {
                     if (!signal.aborted) resolve(dataURI);
-                });
+                }).catch(reject);
                 signal.onabort = reject;
             });
         } else {
