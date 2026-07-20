@@ -867,6 +867,153 @@ style.textContent = `
         font-size: 13px;
         padding: 4px 0;
     }
+
+    .tabby-bookmark-report {
+        margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .tabby-report-card {
+        background: rgba(15, 23, 42, 0.4);
+        border: 1px solid var(--tabby-border);
+        border-radius: 12px;
+        padding: 12px 14px;
+    }
+
+    .tabby-report-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .tabby-report-title-group {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .tabby-report-title {
+        display: block;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--tabby-ink);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .tabby-report-url {
+        display: block;
+        font-size: 11px;
+        color: #38bdf8;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-decoration: none;
+    }
+
+    .tabby-report-url:hover {
+        text-decoration: underline;
+    }
+
+    .tabby-report-pill {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--tabby-muted);
+        background: rgba(255, 255, 255, 0.08);
+        padding: 3px 8px;
+        border-radius: 999px;
+        flex-shrink: 0;
+    }
+
+    .tabby-report-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .tabby-report-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 10px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: background 150ms ease, opacity 150ms ease;
+    }
+
+    .tabby-report-item.-to-remove {
+        background: rgba(248, 113, 113, 0.05);
+        border-color: rgba(248, 113, 113, 0.2);
+    }
+
+    .tabby-report-item.-deleted {
+        opacity: 0.55;
+        text-decoration: line-through;
+    }
+
+    .tabby-report-badge {
+        font-size: 10px;
+        font-weight: 800;
+        padding: 3px 8px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: transform 100ms ease, opacity 100ms ease;
+    }
+
+    .tabby-report-badge:hover:not(:disabled) {
+        transform: scale(1.05);
+    }
+
+    .tabby-report-badge.-keep {
+        background: rgba(52, 211, 153, 0.18);
+        color: #34d399;
+        border: 1px solid rgba(52, 211, 153, 0.35);
+    }
+
+    .tabby-report-badge.-remove {
+        background: rgba(248, 113, 113, 0.18);
+        color: #f87171;
+        border: 1px solid rgba(248, 113, 113, 0.35);
+    }
+
+    .tabby-report-badge.-deleted {
+        background: rgba(148, 163, 184, 0.12);
+        color: #94a3b8;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        cursor: default;
+    }
+
+    .tabby-report-item-info {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .tabby-report-folder {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--tabby-ink);
+    }
+
+    .tabby-report-item-title {
+        font-size: 11px;
+        color: var(--tabby-muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 `;
 document.head.appendChild(style);
 
@@ -1284,21 +1431,163 @@ cleanBookmarksBtn.title = "Automatically remove duplicate bookmarks while preser
 cleanBookmarksBtn.style.marginTop = "10px";
 cleanBookmarksBtn.style.display = "none";
 
+const bookmarkReportDiv = document.createElement("div");
+bookmarkReportDiv.className = "tabby-bookmark-report";
+
 settingsBookmarksSection.appendChild(settingsBookmarksHeading);
 settingsBookmarksSection.appendChild(settingsBookmarksDesc);
 settingsBookmarksSection.appendChild(scanBookmarksBtn);
 settingsBookmarksSection.appendChild(bookmarksResultDiv);
 settingsBookmarksSection.appendChild(cleanBookmarksBtn);
+settingsBookmarksSection.appendChild(bookmarkReportDiv);
 
 let currentAnalysis = null;
+
+function renderBookmarkReport(groups) {
+    bookmarkReportDiv.replaceChildren();
+    if (!groups || groups.length === 0) return;
+
+    for (const group of groups) {
+        const card = document.createElement("div");
+        card.className = "tabby-report-card";
+
+        const header = document.createElement("div");
+        header.className = "tabby-report-header";
+
+        const titleGroup = document.createElement("div");
+        titleGroup.className = "tabby-report-title-group";
+
+        const titleEl = document.createElement("strong");
+        titleEl.className = "tabby-report-title";
+        titleEl.textContent = group.displayTitle || group.url;
+        titleEl.title = group.displayTitle || group.url;
+
+        const urlEl = document.createElement("a");
+        urlEl.className = "tabby-report-url";
+        urlEl.href = group.displayUrl || group.url;
+        urlEl.target = "_blank";
+        urlEl.rel = "noopener noreferrer";
+        urlEl.textContent = group.displayUrl || group.url;
+
+        titleGroup.appendChild(titleEl);
+        titleGroup.appendChild(urlEl);
+
+        const summaryPill = document.createElement("span");
+        summaryPill.className = "tabby-report-pill";
+
+        function updateSummary() {
+            const keepCount = group.bookmarks.filter(b => b.willKeep && !b.deleted).length;
+            const removeCount = group.bookmarks.filter(b => !b.willKeep && !b.deleted).length;
+            const deletedCount = group.bookmarks.filter(b => b.deleted).length;
+            if (deletedCount > 0) {
+                summaryPill.textContent = `${keepCount} kept, ${deletedCount} removed`;
+            } else {
+                summaryPill.textContent = `${keepCount} kept, ${removeCount} to remove`;
+            }
+        }
+        updateSummary();
+
+        header.appendChild(titleGroup);
+        header.appendChild(summaryPill);
+        card.appendChild(header);
+
+        const list = document.createElement("div");
+        list.className = "tabby-report-list";
+
+        for (const item of group.bookmarks) {
+            const row = document.createElement("div");
+            row.className = "tabby-report-item";
+            if (item.deleted) {
+                row.classList.add("-deleted");
+            } else if (!item.willKeep) {
+                row.classList.add("-to-remove");
+            }
+
+            const badgeBtn = document.createElement("button");
+            badgeBtn.type = "button";
+            badgeBtn.className = "tabby-report-badge";
+
+            function updateBadge() {
+                if (item.deleted) {
+                    badgeBtn.textContent = "REMOVED";
+                    badgeBtn.className = "tabby-report-badge -deleted";
+                    badgeBtn.disabled = true;
+                    badgeBtn.title = "This duplicate bookmark has been removed.";
+                } else if (item.willKeep) {
+                    badgeBtn.textContent = "KEEP";
+                    badgeBtn.className = "tabby-report-badge -keep";
+                    badgeBtn.title = "Click to mark this bookmark for removal instead.";
+                } else {
+                    badgeBtn.textContent = "REMOVE";
+                    badgeBtn.className = "tabby-report-badge -remove";
+                    badgeBtn.title = "Click to keep this bookmark instead.";
+                }
+            }
+            updateBadge();
+
+            badgeBtn.addEventListener("click", () => {
+                if (item.deleted) return;
+                item.willKeep = !item.willKeep;
+                updateBadge();
+                row.classList.toggle("-deleted", false);
+                row.classList.toggle("-to-remove", !item.willKeep);
+                updateSummary();
+                recountTotalViolations();
+            });
+
+            const infoDiv = document.createElement("div");
+            infoDiv.className = "tabby-report-item-info";
+
+            const folderSpan = document.createElement("span");
+            folderSpan.className = "tabby-report-folder";
+            const catLabel = item.category === "core" ? " (Core)" : item.category === "date" ? " (Date)" : "";
+            folderSpan.textContent = `📁 ${item.parentTitle || "Root"}${catLabel}`;
+
+            const itemTitleSpan = document.createElement("span");
+            itemTitleSpan.className = "tabby-report-item-title";
+            itemTitleSpan.textContent = item.title && item.title !== item.url ? item.title : "";
+
+            infoDiv.appendChild(folderSpan);
+            if (itemTitleSpan.textContent) {
+                infoDiv.appendChild(itemTitleSpan);
+            }
+
+            row.appendChild(badgeBtn);
+            row.appendChild(infoDiv);
+            list.appendChild(row);
+        }
+
+        card.appendChild(list);
+        bookmarkReportDiv.appendChild(card);
+    }
+}
+
+function recountTotalViolations() {
+    if (!currentAnalysis) return;
+    let total = 0;
+    for (const group of currentAnalysis.groups) {
+        total += group.bookmarks.filter(b => !b.willKeep && !b.deleted).length;
+    }
+    currentAnalysis.totalViolations = total;
+    if (total > 0) {
+        bookmarksResultDiv.textContent = `Found ${total} violation${total === 1 ? "" : "s"} across ${currentAnalysis.groups.length} unique URL${currentAnalysis.groups.length === 1 ? "" : "s"}.`;
+        cleanBookmarksBtn.style.display = "block";
+    } else {
+        bookmarksResultDiv.textContent = `All selected bookmarks marked to KEEP. No violations to clean!`;
+        cleanBookmarksBtn.style.display = "none";
+    }
+}
+
 scanBookmarksBtn.addEventListener("click", async () => {
     bookmarksResultDiv.textContent = "Scanning...";
     cleanBookmarksBtn.style.display = "none";
+    bookmarkReportDiv.replaceChildren();
     try {
         currentAnalysis = await scanAndAnalyzeDuplicates();
         if (currentAnalysis.totalViolations > 0) {
             bookmarksResultDiv.textContent = `Found ${currentAnalysis.totalViolations} violations across ${currentAnalysis.groups.length} unique URLs.`;
             cleanBookmarksBtn.style.display = "block";
+            renderBookmarkReport(currentAnalysis.groups);
         } else {
             bookmarksResultDiv.textContent = `Scanned ${currentAnalysis.totalBookmarks} bookmarks. No violations found!`;
         }
@@ -1314,13 +1603,13 @@ cleanBookmarksBtn.addEventListener("click", async () => {
     try {
         const deleted = await smartCleanBookmarks(currentAnalysis.groups);
         bookmarksResultDiv.textContent = `Successfully removed ${deleted} invalid bookmarks.`;
+        renderBookmarkReport(currentAnalysis.groups);
     } catch (e) {
         bookmarksResultDiv.textContent = `Clean failed: ${e}`;
     }
     cleanBookmarksBtn.textContent = "Clean Violations";
     cleanBookmarksBtn.disabled = false;
     cleanBookmarksBtn.style.display = "none";
-    currentAnalysis = null;
 });
 
 settingsPanel.appendChild(settingsHeader);

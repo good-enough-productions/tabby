@@ -234,7 +234,7 @@ export async function scanAndAnalyzeDuplicates() {
         let keptGeneral = false;
         let deleteCount = 0;
 
-        for (const item of listSorted) {
+        const annotatedBookmarks = listSorted.map(item => {
             const cat = categorizeFolderOrBookmark(item.parentTitle, item.title);
             let keepThis = false;
             if (cat === "core" && !keptCore) {
@@ -251,7 +251,16 @@ export async function scanAndAnalyzeDuplicates() {
             if (!keepThis) {
                 deleteCount++;
             }
-        }
+
+            return {
+                ...item,
+                category: cat,
+                willKeep: keepThis
+            };
+        });
+
+        // Sort so kept items (up to 2) are at the top, followed by items to remove
+        annotatedBookmarks.sort((a, b) => (b.willKeep ? 1 : 0) - (a.willKeep ? 1 : 0));
 
         if (deleteCount > 0) {
             totalViolations += deleteCount;
@@ -259,7 +268,7 @@ export async function scanAndAnalyzeDuplicates() {
                 url,
                 displayUrl: list[0].url,
                 displayTitle: list[0].title,
-                bookmarks: list,
+                bookmarks: annotatedBookmarks,
                 coreCount,
                 dateCount,
                 otherCount,
@@ -290,31 +299,12 @@ export async function smartCleanBookmarks(groupsToClean = null) {
     let deletedCount = 0;
 
     for (const group of groups) {
-        const list = [...group.bookmarks].sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
-
-        let keptCore = false;
-        let keptDate = false;
-        let keptGeneral = false;
-
-        for (const item of list) {
-            const cat = categorizeFolderOrBookmark(item.parentTitle, item.title);
-
-            let keepThis = false;
-            if (cat === "core" && !keptCore) {
-                keptCore = true;
-                keepThis = true;
-            } else if (cat === "date" && !keptDate) {
-                keptDate = true;
-                keepThis = true;
-            } else if (cat === "other" && !keptGeneral && (!keptCore || !keptDate)) {
-                keptGeneral = true;
-                keepThis = true;
-            }
-
-            if (!keepThis) {
+        for (const item of group.bookmarks) {
+            if (item.willKeep === false) {
                 try {
                     await browser.bookmarks.remove(item.id);
                     deletedCount++;
+                    item.deleted = true;
                 } catch (e) {
                     console.error("Failed to delete bookmark:", item.id, e);
                 }
