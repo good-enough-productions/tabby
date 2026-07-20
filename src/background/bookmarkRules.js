@@ -146,16 +146,14 @@ export async function removeNextBookmark(url) {
                 const nodeClean = cleanUrl(node.url);
                 
                 let isMatch = false;
-                if (nodeClean === targetClean) {
+                if (nodeClean === targetClean || targetClean.startsWith(nodeClean) || nodeClean.startsWith(targetClean)) {
                     isMatch = true;
                 } else {
                     try {
                         const nU = new URL(node.url);
                         const tU = new URL(url);
-                        if (nU.hostname.includes('youtube.com') && tU.hostname.includes('youtube.com')) {
-                            if (nU.searchParams.get('v') === tU.searchParams.get('v') && nU.searchParams.get('v')) {
-                                isMatch = true;
-                            }
+                        if (nU.hostname === tU.hostname && nU.pathname === tU.pathname) {
+                            isMatch = true;
                         }
                     } catch(e) {}
                 }
