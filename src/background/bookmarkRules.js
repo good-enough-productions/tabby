@@ -218,20 +218,43 @@ export async function scanAndAnalyzeDuplicates() {
 
         let coreCount = 0;
         let dateCount = 0;
+        let otherCount = 0;
 
         for (const item of list) {
             const cat = categorizeFolderOrBookmark(item.parentTitle, item.title);
             if (cat === "core") coreCount++;
-            if (cat === "date") dateCount++;
+            else if (cat === "date") dateCount++;
+            else otherCount++;
         }
 
-        const isExactDuplicate = list.length > 1;
-        const hasCoreViolation = coreCount > 1;
-        const hasDateViolation = dateCount > 1;
-        const hasMax2Violation = (coreCount + dateCount) > 2 || list.length > 2;
+        // Calculate exact items smartCleanBookmarks will delete
+        const listSorted = [...list].sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
+        let keptCore = false;
+        let keptDate = false;
+        let keptGeneral = false;
+        let deleteCount = 0;
 
-        if (isExactDuplicate || hasCoreViolation || hasDateViolation || hasMax2Violation) {
-            totalViolations++;
+        for (const item of listSorted) {
+            const cat = categorizeFolderOrBookmark(item.parentTitle, item.title);
+            let keepThis = false;
+            if (cat === "core" && !keptCore) {
+                keptCore = true;
+                keepThis = true;
+            } else if (cat === "date" && !keptDate) {
+                keptDate = true;
+                keepThis = true;
+            } else if (cat === "other" && !keptGeneral && (!keptCore || !keptDate)) {
+                keptGeneral = true;
+                keepThis = true;
+            }
+
+            if (!keepThis) {
+                deleteCount++;
+            }
+        }
+
+        if (deleteCount > 0) {
+            totalViolations += deleteCount;
             flaggedGroups.push({
                 url,
                 displayUrl: list[0].url,
@@ -239,10 +262,11 @@ export async function scanAndAnalyzeDuplicates() {
                 bookmarks: list,
                 coreCount,
                 dateCount,
-                isExactDuplicate,
-                hasCoreViolation,
-                hasDateViolation,
-                hasMax2Violation
+                otherCount,
+                deleteCount,
+                hasCoreViolation: coreCount > 1,
+                hasDateViolation: dateCount > 1,
+                hasMax2Violation: (coreCount + dateCount + otherCount) > 2
             });
         }
     }

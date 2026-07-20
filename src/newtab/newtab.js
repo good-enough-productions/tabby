@@ -1172,11 +1172,16 @@ const settingsDetailSeg = document.createElement("div");
 settingsDetailSeg.className = "tabby-detail-seg -stretch";
 
 const settingsDetailModeButtons = {};
-for (let [value, label] of [["none", "No details"], ["minimal", "Minimal"], ["full", "Full"]]) {
+for (let [value, label, btnTitle] of [
+    ["none", "No details", "Screenshot only \u2014 top controls also collapse to a single icon"],
+    ["minimal", "Minimal", "Screenshot plus Open, Pin, Reload, Recapture, and Close action buttons"],
+    ["full", "Full", "Action buttons plus URL, title, status pill, and information badges"]
+]) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "tabby-detail-seg-btn";
     btn.textContent = label;
+    btn.title = btnTitle;
     btn.dataset.mode = value;
     settingsDetailSeg.appendChild(btn);
     settingsDetailModeButtons[value] = btn;
@@ -1265,6 +1270,7 @@ settingsBookmarksDesc.textContent = "Analyze and remove exact duplicates or book
 const scanBookmarksBtn = document.createElement("button");
 scanBookmarksBtn.className = "tabby-button -secondary";
 scanBookmarksBtn.textContent = "Scan Bookmarks";
+scanBookmarksBtn.title = "Scan your bookmarks library for duplicate URLs and folder rule violations (Max 2 rule).";
 scanBookmarksBtn.style.marginTop = "10px";
 
 const bookmarksResultDiv = document.createElement("div");
@@ -1274,6 +1280,7 @@ bookmarksResultDiv.style.marginTop = "10px";
 const cleanBookmarksBtn = document.createElement("button");
 cleanBookmarksBtn.className = "tabby-button -primary";
 cleanBookmarksBtn.textContent = "Clean Violations";
+cleanBookmarksBtn.title = "Automatically remove duplicate bookmarks while preserving at most one Core folder entry and one Date folder entry per URL.";
 cleanBookmarksBtn.style.marginTop = "10px";
 cleanBookmarksBtn.style.display = "none";
 
