@@ -1014,6 +1014,233 @@ style.textContent = `
         overflow: hidden;
         text-overflow: ellipsis;
     }
+
+    /* Studio Modal Styles */
+    .tabby-studio-scrim {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        background: rgba(15, 23, 42, 0.75);
+        backdrop-filter: blur(12px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 200ms ease;
+        padding: 20px;
+    }
+
+    .tabby-studio-scrim.-open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .tabby-studio-modal {
+        width: 100%;
+        max-width: 1240px;
+        height: 88vh;
+        background: rgba(15, 23, 42, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 20px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        color: var(--tabby-ink);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    .tabby-studio-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(30, 41, 59, 0.5);
+    }
+
+    .tabby-studio-title-group h2 {
+        margin: 0 0 4px 0;
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: #38bdf8;
+    }
+
+    .tabby-studio-title-group p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--tabby-muted);
+    }
+
+    .tabby-studio-close-btn {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: var(--tabby-ink);
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: background 150ms ease;
+    }
+
+    .tabby-studio-close-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .tabby-studio-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 16px 24px;
+        background: rgba(15, 23, 42, 0.6);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        align-items: center;
+    }
+
+    .tabby-studio-search {
+        flex: 1;
+        min-width: 240px;
+        background: rgba(30, 41, 59, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        padding: 8px 14px;
+        color: #fff;
+        font-size: 0.9rem;
+    }
+
+    .tabby-studio-select {
+        background: rgba(30, 41, 59, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        padding: 8px 12px;
+        color: #fff;
+        font-size: 0.85rem;
+        cursor: pointer;
+    }
+
+    .tabby-studio-actionbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 12px 24px;
+        background: rgba(30, 41, 59, 0.3);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .tabby-studio-action-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .tabby-studio-action-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .tabby-studio-stats {
+        font-size: 0.85rem;
+        color: var(--tabby-muted);
+        font-weight: 600;
+    }
+
+    .tabby-studio-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .tabby-studio-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 24px;
+        background: rgba(15, 23, 42, 0.8);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .tabby-studio-card {
+        background: rgba(30, 41, 59, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        padding: 16px;
+        transition: border-color 150ms ease;
+    }
+
+    .tabby-studio-card:hover {
+        border-color: rgba(56, 189, 248, 0.4);
+    }
+
+    .tabby-studio-card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .tabby-studio-checkbox {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: #38bdf8;
+    }
+
+    .tabby-studio-card-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .tabby-studio-card-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #f8fafc;
+        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .tabby-studio-card-url {
+        font-size: 0.8rem;
+        color: #38bdf8;
+        text-decoration: none;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: block;
+    }
+
+    .tabby-studio-card-url:hover {
+        text-decoration: underline;
+    }
+
+    .tabby-studio-card-tags {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .tabby-studio-tag {
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--tabby-muted);
+    }
+
+    .tabby-studio-tag.-warning {
+        background: rgba(248, 113, 113, 0.15);
+        color: #f87171;
+    }
 `;
 document.head.appendChild(style);
 
@@ -1414,82 +1641,444 @@ const settingsBookmarksDesc = document.createElement("p");
 settingsBookmarksDesc.className = "tabby-settings-copy";
 settingsBookmarksDesc.textContent = "Analyze and remove exact duplicates or bookmarks that violate core folder rules (Max 2 rule).";
 
-const scanBookmarksBtn = document.createElement("button");
-scanBookmarksBtn.className = "tabby-button -secondary";
-scanBookmarksBtn.textContent = "Scan Bookmarks";
-scanBookmarksBtn.title = "Scan your bookmarks library for duplicate URLs and folder rule violations (Max 2 rule).";
-scanBookmarksBtn.style.marginTop = "10px";
-
-const bookmarksResultDiv = document.createElement("div");
-bookmarksResultDiv.className = "tabby-settings-copy";
-bookmarksResultDiv.style.marginTop = "10px";
-
-const cleanBookmarksBtn = document.createElement("button");
-cleanBookmarksBtn.className = "tabby-button -primary";
-cleanBookmarksBtn.textContent = "Clean Violations";
-cleanBookmarksBtn.title = "Automatically remove duplicate bookmarks while preserving at most one Core folder entry and one Date folder entry per URL.";
-cleanBookmarksBtn.style.marginTop = "10px";
-cleanBookmarksBtn.style.display = "none";
-
-const bookmarkReportDiv = document.createElement("div");
-bookmarkReportDiv.className = "tabby-bookmark-report";
+const openStudioBtn = document.createElement("button");
+openStudioBtn.className = "tabby-button -secondary";
+openStudioBtn.textContent = "Open Bookmark Studio";
+openStudioBtn.title = "Open the full-screen Bookmark Maintenance Studio modal for bulk sorting, filtering, batch cleaning, and spot-checking.";
+openStudioBtn.style.marginTop = "10px";
+openStudioBtn.style.marginLeft = "8px";
 
 settingsBookmarksSection.appendChild(settingsBookmarksHeading);
 settingsBookmarksSection.appendChild(settingsBookmarksDesc);
 settingsBookmarksSection.appendChild(scanBookmarksBtn);
+settingsBookmarksSection.appendChild(openStudioBtn);
 settingsBookmarksSection.appendChild(bookmarksResultDiv);
 settingsBookmarksSection.appendChild(cleanBookmarksBtn);
 settingsBookmarksSection.appendChild(bookmarkReportDiv);
 
 let currentAnalysis = null;
 
-function renderBookmarkReport(groups) {
-    bookmarkReportDiv.replaceChildren();
-    if (!groups || groups.length === 0) return;
+// --- BOOKMARK MAINTENANCE STUDIO MODAL ---
+const studioScrim = document.createElement("div");
+studioScrim.className = "tabby-studio-scrim";
 
-    for (const group of groups) {
-        const card = document.createElement("div");
-        card.className = "tabby-report-card";
+const studioModal = document.createElement("div");
+studioModal.className = "tabby-studio-modal";
 
-        const header = document.createElement("div");
-        header.className = "tabby-report-header";
+// Header
+const studioHeader = document.createElement("div");
+studioHeader.className = "tabby-studio-header";
 
-        const titleGroup = document.createElement("div");
-        titleGroup.className = "tabby-report-title-group";
+const studioTitleGroup = document.createElement("div");
+studioTitleGroup.className = "tabby-studio-title-group";
+const studioTitle = document.createElement("h2");
+studioTitle.textContent = "Bookmark Maintenance Studio";
+const studioSubtitle = document.createElement("p");
+studioSubtitle.textContent = "Search, filter, batch-clean, and spot-check duplicate bookmarks across your library.";
+studioTitleGroup.appendChild(studioTitle);
+studioTitleGroup.appendChild(studioSubtitle);
 
-        const titleEl = document.createElement("strong");
-        titleEl.className = "tabby-report-title";
-        titleEl.textContent = group.displayTitle || group.url;
-        titleEl.title = group.displayTitle || group.url;
+const studioCloseBtn = document.createElement("button");
+studioCloseBtn.type = "button";
+studioCloseBtn.className = "tabby-studio-close-btn";
+studioCloseBtn.textContent = "Close Studio";
+studioCloseBtn.title = "Close the Bookmark Maintenance Studio.";
+studioCloseBtn.addEventListener("click", () => closeBookmarkStudio());
 
-        const urlEl = document.createElement("a");
-        urlEl.className = "tabby-report-url";
-        urlEl.href = group.displayUrl || group.url;
-        urlEl.target = "_blank";
-        urlEl.rel = "noopener noreferrer";
-        urlEl.textContent = group.displayUrl || group.url;
+studioHeader.appendChild(studioTitleGroup);
+studioHeader.appendChild(studioCloseBtn);
 
-        titleGroup.appendChild(titleEl);
-        titleGroup.appendChild(urlEl);
+// Toolbar
+const studioToolbar = document.createElement("div");
+studioToolbar.className = "tabby-studio-toolbar";
 
-        const summaryPill = document.createElement("span");
-        summaryPill.className = "tabby-report-pill";
+const studioSearchInput = document.createElement("input");
+studioSearchInput.className = "tabby-studio-search";
+studioSearchInput.type = "search";
+studioSearchInput.placeholder = "Filter by title, URL, or domain...";
+studioSearchInput.title = "Filter flagged URLs by title, URL, or domain keyword.";
 
-        function updateSummary() {
-            const keepCount = group.bookmarks.filter(b => b.willKeep && !b.deleted).length;
-            const removeCount = group.bookmarks.filter(b => !b.willKeep && !b.deleted).length;
-            const deletedCount = group.bookmarks.filter(b => b.deleted).length;
-            if (deletedCount > 0) {
-                summaryPill.textContent = `${keepCount} kept, ${deletedCount} removed`;
-            } else {
-                summaryPill.textContent = `${keepCount} kept, ${removeCount} to remove`;
-            }
+const studioViolationFilter = document.createElement("select");
+studioViolationFilter.className = "tabby-studio-select";
+studioViolationFilter.title = "Filter by violation category.";
+for (let [val, lbl] of [
+    ["all", "All Violations"],
+    ["multi_core", "Multi-Core (2+ Core)"],
+    ["multi_date", "Multi-Date (2+ Date)"],
+    ["max2_exceeded", "Max 2 Exceeded (3+ Total)"],
+    ["high_volume", "High Volume (4+ Copies)"]
+]) {
+    let opt = document.createElement("option");
+    opt.value = val;
+    opt.textContent = lbl;
+    studioViolationFilter.appendChild(opt);
+}
+
+const studioFolderSelect = document.createElement("select");
+studioFolderSelect.className = "tabby-studio-select";
+studioFolderSelect.title = "Filter by folder presence.";
+let defaultFolderOpt = document.createElement("option");
+defaultFolderOpt.value = "all";
+defaultFolderOpt.textContent = "All Folders";
+studioFolderSelect.appendChild(defaultFolderOpt);
+
+const studioSortSelect = document.createElement("select");
+studioSortSelect.className = "tabby-studio-select";
+studioSortSelect.title = "Change how flagged groups are ordered.";
+for (let [val, lbl] of [
+    ["duplicates_desc", "Most Duplicates First"],
+    ["duplicates_asc", "Least Duplicates First"],
+    ["domain_asc", "Domain (A \u2013 Z)"],
+    ["title_asc", "Title / URL (A \u2013 Z)"],
+    ["newest", "Newest Bookmark First"],
+    ["oldest", "Oldest Bookmark First"]
+]) {
+    let opt = document.createElement("option");
+    opt.value = val;
+    opt.textContent = lbl;
+    studioSortSelect.appendChild(opt);
+}
+
+const studioPageSizeSelect = document.createElement("select");
+studioPageSizeSelect.className = "tabby-studio-select";
+studioPageSizeSelect.title = "Number of URLs to show per page.";
+for (let [val, lbl] of [
+    [10, "10 per page"],
+    [25, "25 per page"],
+    [50, "50 per page"],
+    [100, "100 per page"],
+    [9999, "Show All"]
+]) {
+    let opt = document.createElement("option");
+    opt.value = val;
+    opt.textContent = lbl;
+    studioPageSizeSelect.appendChild(opt);
+}
+studioPageSizeSelect.value = 25;
+
+studioToolbar.appendChild(studioSearchInput);
+studioToolbar.appendChild(studioViolationFilter);
+studioToolbar.appendChild(studioFolderSelect);
+studioToolbar.appendChild(studioSortSelect);
+studioToolbar.appendChild(studioPageSizeSelect);
+
+// Actionbar
+const studioActionbar = document.createElement("div");
+studioActionbar.className = "tabby-studio-actionbar";
+
+const studioActionLeft = document.createElement("div");
+studioActionLeft.className = "tabby-studio-action-left";
+
+const studioSelectAllLabel = document.createElement("label");
+studioSelectAllLabel.style.display = "flex";
+studioSelectAllLabel.style.alignItems = "center";
+studioSelectAllLabel.style.gap = "6px";
+studioSelectAllLabel.style.fontSize = "0.85rem";
+studioSelectAllLabel.style.cursor = "pointer";
+
+const studioSelectAllCheckbox = document.createElement("input");
+studioSelectAllCheckbox.type = "checkbox";
+studioSelectAllCheckbox.className = "tabby-studio-checkbox";
+studioSelectAllCheckbox.title = "Select all visible URLs on the current page for batch cleaning.";
+
+const studioSelectAllSpan = document.createElement("span");
+studioSelectAllSpan.textContent = "Select Visible";
+
+studioSelectAllLabel.appendChild(studioSelectAllCheckbox);
+studioSelectAllLabel.appendChild(studioSelectAllSpan);
+
+const studioCleanSelectedBtn = document.createElement("button");
+studioCleanSelectedBtn.type = "button";
+studioCleanSelectedBtn.className = "tabby-button -primary";
+studioCleanSelectedBtn.textContent = "Clean Selected (0)";
+studioCleanSelectedBtn.title = "Remove duplicate bookmarks for only the checked URL groups.";
+studioCleanSelectedBtn.disabled = true;
+
+const studioCleanAllBtn = document.createElement("button");
+studioCleanAllBtn.type = "button";
+studioCleanAllBtn.className = "tabby-button -secondary";
+studioCleanAllBtn.textContent = "Clean All Violations";
+studioCleanAllBtn.title = "Remove duplicate bookmarks across all flagged groups in your library.";
+
+studioActionLeft.appendChild(studioSelectAllLabel);
+studioActionLeft.appendChild(studioCleanSelectedBtn);
+studioActionLeft.appendChild(studioCleanAllBtn);
+
+const studioActionRight = document.createElement("div");
+studioActionRight.className = "tabby-studio-action-right";
+
+const studioStatsEl = document.createElement("span");
+studioStatsEl.className = "tabby-studio-stats";
+studioStatsEl.textContent = "Loading studio...";
+
+studioActionRight.appendChild(studioStatsEl);
+
+studioActionbar.appendChild(studioActionLeft);
+studioActionbar.appendChild(studioActionRight);
+
+// Body
+const studioBodyEl = document.createElement("div");
+studioBodyEl.className = "tabby-studio-body";
+
+// Footer (Pagination)
+const studioFooter = document.createElement("div");
+studioFooter.className = "tabby-studio-footer";
+
+const studioPrevPageBtn = document.createElement("button");
+studioPrevPageBtn.type = "button";
+studioPrevPageBtn.className = "tabby-button -secondary";
+studioPrevPageBtn.textContent = "\u2190 Previous";
+studioPrevPageBtn.title = "Go to the previous page of flagged bookmarks.";
+
+const studioPageIndicator = document.createElement("span");
+studioPageIndicator.className = "tabby-studio-stats";
+studioPageIndicator.textContent = "Page 1 of 1";
+
+const studioNextPageBtn = document.createElement("button");
+studioNextPageBtn.type = "button";
+studioNextPageBtn.className = "tabby-button -secondary";
+studioNextPageBtn.textContent = "Next \u2192";
+studioNextPageBtn.title = "Go to the next page of flagged bookmarks.";
+
+studioFooter.appendChild(studioPrevPageBtn);
+studioFooter.appendChild(studioPageIndicator);
+studioFooter.appendChild(studioNextPageBtn);
+
+studioModal.appendChild(studioHeader);
+studioModal.appendChild(studioToolbar);
+studioModal.appendChild(studioActionbar);
+studioModal.appendChild(studioBodyEl);
+studioModal.appendChild(studioFooter);
+studioScrim.appendChild(studioModal);
+document.body.appendChild(studioScrim);
+
+// State
+let studioState = {
+    isOpen: false,
+    searchQuery: "",
+    violationFilter: "all",
+    folderFilter: "all",
+    sortMode: "duplicates_desc",
+    pageSize: 25,
+    currentPage: 1,
+    selectedGroupIds: new Set()
+};
+
+function populateFolderFilter(groups) {
+    const folders = new Set();
+    for (const g of groups) {
+        if (g.folders) {
+            for (const f of g.folders) folders.add(f);
         }
-        updateSummary();
+    }
+    const currentVal = studioFolderSelect.value;
+    studioFolderSelect.replaceChildren();
+    let defaultOpt = document.createElement("option");
+    defaultOpt.value = "all";
+    defaultOpt.textContent = "All Folders";
+    studioFolderSelect.appendChild(defaultOpt);
 
-        header.appendChild(titleGroup);
-        header.appendChild(summaryPill);
-        card.appendChild(header);
+    for (const folder of Array.from(folders).sort()) {
+        let opt = document.createElement("option");
+        opt.value = folder;
+        opt.textContent = `📁 ${folder}`;
+        studioFolderSelect.appendChild(opt);
+    }
+    studioFolderSelect.value = folders.has(currentVal) ? currentVal : "all";
+}
+
+function openBookmarkStudio() {
+    studioState.isOpen = true;
+    studioScrim.classList.add("-open");
+    if (currentAnalysis) {
+        populateFolderFilter(currentAnalysis.groups);
+        renderStudio();
+    } else {
+        scanAndAnalyzeDuplicates().then(res => {
+            currentAnalysis = res;
+            populateFolderFilter(res.groups);
+            renderStudio();
+        });
+    }
+}
+
+function closeBookmarkStudio() {
+    studioState.isOpen = false;
+    studioScrim.classList.remove("-open");
+}
+
+function getFilteredSortedGroups() {
+    if (!currentAnalysis || !currentAnalysis.groups) return [];
+    let list = currentAnalysis.groups.filter(g => {
+        // Active violations check
+        const activeDeletes = g.bookmarks.filter(b => !b.willKeep && !b.deleted).length;
+        if (activeDeletes === 0) return false;
+
+        // Search filter
+        if (studioState.searchQuery) {
+            const q = studioState.searchQuery.toLowerCase();
+            const matchTitle = (g.displayTitle || "").toLowerCase().includes(q);
+            const matchUrl = (g.displayUrl || "").toLowerCase().includes(q);
+            const matchDomain = (g.domain || "").toLowerCase().includes(q);
+            if (!matchTitle && !matchUrl && !matchDomain) return false;
+        }
+
+        // Violation filter
+        if (studioState.violationFilter === "multi_core" && !g.hasCoreViolation) return false;
+        if (studioState.violationFilter === "multi_date" && !g.hasDateViolation) return false;
+        if (studioState.violationFilter === "max2_exceeded" && !g.hasMax2Violation) return false;
+        if (studioState.violationFilter === "high_volume" && g.totalCopies < 4) return false;
+
+        // Folder filter
+        if (studioState.folderFilter !== "all") {
+            if (!g.folders || !g.folders.includes(studioState.folderFilter)) return false;
+        }
+
+        return true;
+    });
+
+    // Sorting
+    list.sort((a, b) => {
+        if (studioState.sortMode === "duplicates_desc") {
+            return b.deleteCount - a.deleteCount || b.totalCopies - a.totalCopies;
+        }
+        if (studioState.sortMode === "duplicates_asc") {
+            return a.deleteCount - b.deleteCount || a.totalCopies - b.totalCopies;
+        }
+        if (studioState.sortMode === "domain_asc") {
+            return (a.domain || "").localeCompare(b.domain || "");
+        }
+        if (studioState.sortMode === "title_asc") {
+            return (a.displayTitle || a.url).localeCompare(b.displayTitle || b.url);
+        }
+        if (studioState.sortMode === "newest") {
+            return (b.maxDateAdded || 0) - (a.maxDateAdded || 0);
+        }
+        if (studioState.sortMode === "oldest") {
+            return (a.minDateAdded || 0) - (b.minDateAdded || 0);
+        }
+        return 0;
+    });
+
+    return list;
+}
+
+function renderStudio() {
+    if (!studioState.isOpen) return;
+
+    const filtered = getFilteredSortedGroups();
+    const totalCount = filtered.length;
+    const pageSize = studioState.pageSize;
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+    if (studioState.currentPage > totalPages) {
+        studioState.currentPage = totalPages;
+    }
+
+    const startIndex = (studioState.currentPage - 1) * pageSize;
+    const pageGroups = filtered.slice(startIndex, startIndex + pageSize);
+
+    // Update Action Bar & Stats
+    let totalRemovals = 0;
+    for (const g of filtered) {
+        totalRemovals += g.bookmarks.filter(b => !b.willKeep && !b.deleted).length;
+    }
+
+    studioStatsEl.textContent = `Showing ${pageGroups.length} of ${totalCount} URL groups \u2022 ${totalRemovals} duplicate bookmark${totalRemovals === 1 ? "" : "s"} to clean`;
+    studioCleanSelectedBtn.textContent = `Clean Selected (${studioState.selectedGroupIds.size})`;
+    studioCleanSelectedBtn.disabled = studioState.selectedGroupIds.size === 0;
+
+    // Pagination Controls
+    studioPageIndicator.textContent = `Page ${studioState.currentPage} of ${totalPages}`;
+    studioPrevPageBtn.disabled = studioState.currentPage <= 1;
+    studioNextPageBtn.disabled = studioState.currentPage >= totalPages;
+
+    // Check visible select all state
+    const allVisibleSelected = pageGroups.length > 0 && pageGroups.every(g => studioState.selectedGroupIds.has(g.id));
+    studioSelectAllCheckbox.checked = allVisibleSelected;
+
+    studioBodyEl.replaceChildren();
+
+    if (pageGroups.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "tabby-session-empty";
+        empty.style.textAlign = "center";
+        empty.style.padding = "40px 20px";
+        empty.textContent = totalCount === 0 ? "No bookmark violations found matching your search and filter criteria!" : "No URLs on this page.";
+        studioBodyEl.appendChild(empty);
+        return;
+    }
+
+    for (const group of pageGroups) {
+        const card = document.createElement("div");
+        card.className = "tabby-studio-card";
+
+        const cardHeader = document.createElement("div");
+        cardHeader.className = "tabby-studio-card-header";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "tabby-studio-checkbox";
+        checkbox.checked = studioState.selectedGroupIds.has(group.id);
+        checkbox.addEventListener("change", () => {
+            if (checkbox.checked) {
+                studioState.selectedGroupIds.add(group.id);
+            } else {
+                studioState.selectedGroupIds.delete(group.id);
+            }
+            renderStudio();
+        });
+
+        const cardInfo = document.createElement("div");
+        cardInfo.className = "tabby-studio-card-info";
+
+        const cardTitle = document.createElement("div");
+        cardTitle.className = "tabby-studio-card-title";
+        cardTitle.textContent = group.displayTitle || group.url;
+        cardTitle.title = group.displayTitle || group.url;
+
+        const cardUrl = document.createElement("a");
+        cardUrl.className = "tabby-studio-card-url";
+        cardUrl.href = group.displayUrl || group.url;
+        cardUrl.target = "_blank";
+        cardUrl.rel = "noopener noreferrer";
+        cardUrl.textContent = group.displayUrl || group.url;
+
+        cardInfo.appendChild(cardTitle);
+        cardInfo.appendChild(cardUrl);
+
+        const cardTags = document.createElement("div");
+        cardTags.className = "tabby-studio-card-tags";
+
+        const copiesTag = document.createElement("span");
+        copiesTag.className = "tabby-studio-tag";
+        copiesTag.textContent = `${group.bookmarks.length} copies`;
+
+        cardTags.appendChild(copiesTag);
+
+        if (group.hasCoreViolation) {
+            const tag = document.createElement("span");
+            tag.className = "tabby-studio-tag -warning";
+            tag.textContent = "Multi-Core";
+            cardTags.appendChild(tag);
+        }
+        if (group.hasDateViolation) {
+            const tag = document.createElement("span");
+            tag.className = "tabby-studio-tag -warning";
+            tag.textContent = "Multi-Date";
+            cardTags.appendChild(tag);
+        }
+        if (group.hasMax2Violation) {
+            const tag = document.createElement("span");
+            tag.className = "tabby-studio-tag -warning";
+            tag.textContent = "Max 2 Exceeded";
+            cardTags.appendChild(tag);
+        }
+
+        cardHeader.appendChild(checkbox);
+        cardHeader.appendChild(cardInfo);
+        cardHeader.appendChild(cardTags);
+        card.appendChild(cardHeader);
 
         const list = document.createElement("div");
         list.className = "tabby-report-list";
@@ -1531,8 +2120,7 @@ function renderBookmarkReport(groups) {
                 updateBadge();
                 row.classList.toggle("-deleted", false);
                 row.classList.toggle("-to-remove", !item.willKeep);
-                updateSummary();
-                recountTotalViolations();
+                renderStudio();
             });
 
             const infoDiv = document.createElement("div");
@@ -1558,6 +2146,131 @@ function renderBookmarkReport(groups) {
         }
 
         card.appendChild(list);
+        studioBodyEl.appendChild(card);
+    }
+}
+
+// Studio Event Listeners
+studioSearchInput.addEventListener("input", e => {
+    studioState.searchQuery = e.target.value;
+    studioState.currentPage = 1;
+    renderStudio();
+});
+
+studioViolationFilter.addEventListener("change", e => {
+    studioState.violationFilter = e.target.value;
+    studioState.currentPage = 1;
+    renderStudio();
+});
+
+studioFolderSelect.addEventListener("change", e => {
+    studioState.folderFilter = e.target.value;
+    studioState.currentPage = 1;
+    renderStudio();
+});
+
+studioSortSelect.addEventListener("change", e => {
+    studioState.sortMode = e.target.value;
+    renderStudio();
+});
+
+studioPageSizeSelect.addEventListener("change", e => {
+    studioState.pageSize = parseInt(e.target.value, 10);
+    studioState.currentPage = 1;
+    renderStudio();
+});
+
+studioSelectAllCheckbox.addEventListener("change", e => {
+    const pageGroups = getFilteredSortedGroups().slice((studioState.currentPage - 1) * studioState.pageSize, studioState.currentPage * studioState.pageSize);
+    if (e.target.checked) {
+        for (const g of pageGroups) studioState.selectedGroupIds.add(g.id);
+    } else {
+        for (const g of pageGroups) studioState.selectedGroupIds.delete(g.id);
+    }
+    renderStudio();
+});
+
+studioPrevPageBtn.addEventListener("click", () => {
+    if (studioState.currentPage > 1) {
+        studioState.currentPage--;
+        renderStudio();
+    }
+});
+
+studioNextPageBtn.addEventListener("click", () => {
+    studioState.currentPage++;
+    renderStudio();
+});
+
+studioCleanSelectedBtn.addEventListener("click", async () => {
+    if (studioState.selectedGroupIds.size === 0 || !currentAnalysis) return;
+    studioCleanSelectedBtn.textContent = "Cleaning...";
+    studioCleanSelectedBtn.disabled = true;
+
+    const selectedGroups = currentAnalysis.groups.filter(g => studioState.selectedGroupIds.has(g.id));
+    try {
+        const deleted = await smartCleanBookmarks(selectedGroups);
+        studioState.selectedGroupIds.clear();
+        bookmarksResultDiv.textContent = `Successfully removed ${deleted} invalid bookmarks from selected groups.`;
+        currentAnalysis = await scanAndAnalyzeDuplicates();
+        populateFolderFilter(currentAnalysis.groups);
+        renderStudio();
+        renderBookmarkReport(currentAnalysis.groups);
+    } catch (e) {
+        bookmarksResultDiv.textContent = `Clean failed: ${e}`;
+    }
+});
+
+studioCleanAllBtn.addEventListener("click", async () => {
+    if (!currentAnalysis) return;
+    studioCleanAllBtn.textContent = "Cleaning All...";
+    studioCleanAllBtn.disabled = true;
+    try {
+        const deleted = await smartCleanBookmarks(currentAnalysis.groups);
+        studioState.selectedGroupIds.clear();
+        bookmarksResultDiv.textContent = `Successfully removed ${deleted} invalid bookmarks.`;
+        currentAnalysis = await scanAndAnalyzeDuplicates();
+        populateFolderFilter(currentAnalysis.groups);
+        renderStudio();
+        renderBookmarkReport(currentAnalysis.groups);
+    } catch (e) {
+        bookmarksResultDiv.textContent = `Clean failed: ${e}`;
+    }
+    studioCleanAllBtn.textContent = "Clean All Violations";
+    studioCleanAllBtn.disabled = false;
+});
+
+function renderBookmarkReport(groups) {
+    bookmarkReportDiv.replaceChildren();
+    if (!groups || groups.length === 0) return;
+
+    for (const group of groups.slice(0, 5)) {
+        const card = document.createElement("div");
+        card.className = "tabby-report-card";
+
+        const header = document.createElement("div");
+        header.className = "tabby-report-header";
+
+        const titleGroup = document.createElement("div");
+        titleGroup.className = "tabby-report-title-group";
+
+        const titleEl = document.createElement("strong");
+        titleEl.className = "tabby-report-title";
+        titleEl.textContent = group.displayTitle || group.url;
+
+        const urlEl = document.createElement("a");
+        urlEl.className = "tabby-report-url";
+        urlEl.href = group.displayUrl || group.url;
+        urlEl.target = "_blank";
+        urlEl.rel = "noopener noreferrer";
+        urlEl.textContent = group.displayUrl || group.url;
+
+        titleGroup.appendChild(titleEl);
+        titleGroup.appendChild(urlEl);
+
+        header.appendChild(titleGroup);
+        card.appendChild(header);
+
         bookmarkReportDiv.appendChild(card);
     }
 }
@@ -1587,7 +2300,7 @@ scanBookmarksBtn.addEventListener("click", async () => {
         if (currentAnalysis.totalViolations > 0) {
             bookmarksResultDiv.textContent = `Found ${currentAnalysis.totalViolations} violations across ${currentAnalysis.groups.length} unique URLs.`;
             cleanBookmarksBtn.style.display = "block";
-            renderBookmarkReport(currentAnalysis.groups);
+            openBookmarkStudio();
         } else {
             bookmarksResultDiv.textContent = `Scanned ${currentAnalysis.totalBookmarks} bookmarks. No violations found!`;
         }
@@ -1597,19 +2310,7 @@ scanBookmarksBtn.addEventListener("click", async () => {
 });
 
 cleanBookmarksBtn.addEventListener("click", async () => {
-    if (!currentAnalysis) return;
-    cleanBookmarksBtn.textContent = "Cleaning...";
-    cleanBookmarksBtn.disabled = true;
-    try {
-        const deleted = await smartCleanBookmarks(currentAnalysis.groups);
-        bookmarksResultDiv.textContent = `Successfully removed ${deleted} invalid bookmarks.`;
-        renderBookmarkReport(currentAnalysis.groups);
-    } catch (e) {
-        bookmarksResultDiv.textContent = `Clean failed: ${e}`;
-    }
-    cleanBookmarksBtn.textContent = "Clean Violations";
-    cleanBookmarksBtn.disabled = false;
-    cleanBookmarksBtn.style.display = "none";
+    openBookmarkStudio();
 });
 
 settingsPanel.appendChild(settingsHeader);

@@ -264,10 +264,29 @@ export async function scanAndAnalyzeDuplicates() {
 
         if (deleteCount > 0) {
             totalViolations += deleteCount;
+
+            let domain = "other";
+            try {
+                domain = new URL(list[0].url).hostname.replace(/^www\./, "");
+            } catch (e) {
+                domain = "other";
+            }
+
+            const dates = list.map(b => b.dateAdded || 0).filter(Boolean);
+            const maxDateAdded = dates.length ? Math.max(...dates) : 0;
+            const minDateAdded = dates.length ? Math.min(...dates) : 0;
+            const folders = Array.from(new Set(list.map(b => b.parentTitle || "Root"))).filter(Boolean);
+
             flaggedGroups.push({
+                id: `group_${flaggedGroups.length + 1}_${Date.now()}`,
                 url,
                 displayUrl: list[0].url,
                 displayTitle: list[0].title,
+                domain,
+                maxDateAdded,
+                minDateAdded,
+                folders,
+                totalCopies: list.length,
                 bookmarks: annotatedBookmarks,
                 coreCount,
                 dateCount,
