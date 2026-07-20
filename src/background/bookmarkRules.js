@@ -121,18 +121,57 @@ export async function ensureUrlBookmarkedAsNext(url, title = "") {
 }
 
 export async function removeNextBookmark(url) {
-    if (!browser.bookmarks?.search || !url) return false;
-    const existing = await browser.bookmarks.search({ url });
-    const parentMap = await getBookmarkParentTitles(existing);
-
-    let removedCount = 0;
-    for (const b of existing) {
-        const parentTitle = parentMap[b.id] || "";
-        if (parentTitle.trim().toLowerCase() === "next" || b.title?.trim().toLowerCase() === "next") {
-            await browser.bookmarks.remove(b.id).catch(() => {});
-            removedCount++;
+    if (!browser.bookmarks?.getTree || !url) return false;
+    const tree = await browser.bookmarks.getTree();
+    
+    function cleanUrl(u) {
+        try {
+            const parsed = new URL(u);
+            parsed.hash = '';
+            parsed.searchParams.delete('t');
+            return parsed.toString();
+        } catch(e) {
+            return String(u).split('#')[0];
         }
     }
+    
+    const targetClean = cleanUrl(url);
+    let removedCount = 0;
+    
+    function searchAndRemove(nodes, inNext = false) {
+        for (const node of nodes) {
+            const isNext = inNext || (node.title?.trim().toLowerCase() === "next");
+            
+            if (node.url && isNext) {
+                const nodeClean = cleanUrl(node.url);
+                
+                let isMatch = false;
+                if (nodeClean === targetClean) {
+                    isMatch = true;
+                } else {
+                    try {
+                        const nU = new URL(node.url);
+                        const tU = new URL(url);
+                        if (nU.hostname.includes('youtube.com') && tU.hostname.includes('youtube.com')) {
+                            if (nU.searchParams.get('v') === tU.searchParams.get('v') && nU.searchParams.get('v')) {
+                                isMatch = true;
+                            }
+                        }
+                    } catch(e) {}
+                }
+                
+                if (isMatch) {
+                    browser.bookmarks.remove(node.id).catch(() => {});
+                    removedCount++;
+                }
+            }
+            if (node.children) {
+                searchAndRemove(node.children, isNext);
+            }
+        }
+    }
+    
+    searchAndRemove(tree);
     return removedCount > 0;
 }
 
