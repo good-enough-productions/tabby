@@ -1,5 +1,6 @@
 import "Polyfill";
 import { resolveDefault } from "../options/exports";
+import { smartCleanBookmarks, scanAndAnalyzeDuplicates } from "../background/bookmarkRules";
 import { $local$ } from "../tapi/store";
 
 const root = document.getElementById("app");
@@ -1251,9 +1252,74 @@ settingsSessionSection.appendChild(settingsSessionDesc);
 settingsSessionSection.appendChild(settingsAutosaveRow.row);
 settingsSessionSection.appendChild(sessionHistoryList);
 
+const settingsBookmarksSection = document.createElement("section");
+settingsBookmarksSection.className = "tabby-settings-section";
+
+const settingsBookmarksHeading = document.createElement("h3");
+settingsBookmarksHeading.textContent = "Bookmark Maintenance";
+
+const settingsBookmarksDesc = document.createElement("p");
+settingsBookmarksDesc.className = "tabby-settings-copy";
+settingsBookmarksDesc.textContent = "Analyze and remove exact duplicates or bookmarks that violate core folder rules (Max 2 rule).";
+
+const scanBookmarksBtn = document.createElement("button");
+scanBookmarksBtn.className = "tabby-button -secondary";
+scanBookmarksBtn.textContent = "Scan Bookmarks";
+scanBookmarksBtn.style.marginTop = "10px";
+
+const bookmarksResultDiv = document.createElement("div");
+bookmarksResultDiv.className = "tabby-settings-copy";
+bookmarksResultDiv.style.marginTop = "10px";
+
+const cleanBookmarksBtn = document.createElement("button");
+cleanBookmarksBtn.className = "tabby-button -primary";
+cleanBookmarksBtn.textContent = "Clean Violations";
+cleanBookmarksBtn.style.marginTop = "10px";
+cleanBookmarksBtn.style.display = "none";
+
+settingsBookmarksSection.appendChild(settingsBookmarksHeading);
+settingsBookmarksSection.appendChild(settingsBookmarksDesc);
+settingsBookmarksSection.appendChild(scanBookmarksBtn);
+settingsBookmarksSection.appendChild(bookmarksResultDiv);
+settingsBookmarksSection.appendChild(cleanBookmarksBtn);
+
+let currentAnalysis = null;
+scanBookmarksBtn.addEventListener("click", async () => {
+    bookmarksResultDiv.textContent = "Scanning...";
+    cleanBookmarksBtn.style.display = "none";
+    try {
+        currentAnalysis = await scanAndAnalyzeDuplicates();
+        if (currentAnalysis.totalViolations > 0) {
+            bookmarksResultDiv.textContent = `Found ${currentAnalysis.totalViolations} violations across ${currentAnalysis.groups.length} unique URLs.`;
+            cleanBookmarksBtn.style.display = "block";
+        } else {
+            bookmarksResultDiv.textContent = `Scanned ${currentAnalysis.totalBookmarks} bookmarks. No violations found!`;
+        }
+    } catch (e) {
+        bookmarksResultDiv.textContent = `Scan failed: ${e}`;
+    }
+});
+
+cleanBookmarksBtn.addEventListener("click", async () => {
+    if (!currentAnalysis) return;
+    cleanBookmarksBtn.textContent = "Cleaning...";
+    cleanBookmarksBtn.disabled = true;
+    try {
+        const deleted = await smartCleanBookmarks(currentAnalysis.groups);
+        bookmarksResultDiv.textContent = `Successfully removed ${deleted} invalid bookmarks.`;
+    } catch (e) {
+        bookmarksResultDiv.textContent = `Clean failed: ${e}`;
+    }
+    cleanBookmarksBtn.textContent = "Clean Violations";
+    cleanBookmarksBtn.disabled = false;
+    cleanBookmarksBtn.style.display = "none";
+    currentAnalysis = null;
+});
+
 settingsPanel.appendChild(settingsHeader);
 settingsPanel.appendChild(settingsTogglesSection);
 settingsPanel.appendChild(settingsSessionSection);
+settingsPanel.appendChild(settingsBookmarksSection);
 settingsPanel.appendChild(settingsGuideSection);
 
 topPanelInner.appendChild(hero);

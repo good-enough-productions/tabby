@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabby — Window & Tab Manager Documentation</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: rgba(30, 41, 59, 0.85);
+            --surface-border: rgba(255, 255, 255, 0.1);
+            --primary: #38bdf8;
+            --primary-glow: rgba(56, 189, 248, 0.15);
+            --accent: #818cf8;
+            --text: #f8fafc;
+            --muted: #94a3b8;
+            --success: #34d399;
+            --warning: #fbbf24;
+            --radius: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(129, 140, 248, 0.1));
+            border-radius: var(--radius);
+            border: 1px solid var(--surface-border);
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--muted);
+            max-width: 650px;
+            margin: 0 auto 20px;
+        }
+
+        .badges {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        section {
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: var(--radius);
+            padding: 30px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(12px);
+        }
+
+        h2 {
+            font-size: 1.6rem;
+            color: var(--primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--surface-border);
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            color: var(--text);
+            margin: 20px 0 10px;
+        }
+
+        p, li {
+            color: var(--muted);
+            font-size: 1rem;
+            margin-bottom: 12px;
+        }
+
+        ul, ol {
+            padding-left: 24px;
+            margin-bottom: 16px;
+        }
+
+        li {
+            margin-bottom: 6px;
+        }
+
+        code {
+            background: rgba(15, 23, 42, 0.8);
+            color: #7dd3fc;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-family: "Fira Code", monospace;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background: #090d16;
+            padding: 16px;
+            border-radius: 12px;
+            overflow-x: auto;
+            border: 1px solid var(--surface-border);
+            margin-bottom: 16px;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: #e2e8f0;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--surface-border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .card h4 {
+            color: var(--text);
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+
+        .pref-tag {
+            display: inline-block;
+            background: rgba(52, 211, 153, 0.15);
+            color: var(--success);
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+
+        }
+
+        .backlog-item {
+            display: flex;
+            gap: 14px;
+            padding: 14px 0;
+            border-bottom: 1px dashed var(--surface-border);
+        }
+
+        .backlog-item:last-child {
+            border-bottom: none;
+        }
+
+        .backlog-num {
+            font-weight: 800;
+            color: var(--primary);
+            font-size: 1.1rem;
+            min-width: 24px;
+        }
+
+        footer {
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-top: 50px;
+        }
+
+        a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Tabby — Window & Tab Manager</h1>
+            <p class="subtitle">Firefox-first tab management dashboard with visual previews, session recovery, strict bookmark deduplication, and automated video-watch bookmarking.</p>
+            <div class="badges">
+                <span class="badge">Firefox First</span>
+                <span class="badge">Manifest V3</span>
+                <span class="badge">Webpack 5</span>
+                <span class="badge">Version 3.2.1+</span>
+            </div>
+        </header>
+
+        <section id="overview">
+            <h2>📦 Project Overview</h2>
+            <p>Tabby transforms the browser's New Tab page into a high-performance visual control surface. Instead of live DOM embeds, Tabby uses cached static screenshots and lightweight tab metadata to provide instant window overview, tab search/filtering, and reordering.</p>
+            
+            <div class="grid">
+                <div class="card">
+                    <h4>🖼 New Tab Dashboard</h4>
+                    <p>Visual preview grid for all other tabs in the current window with drag-and-drop browser order sorting.</p>
+                </div>
+                <div class="card">
+                    <h4>💾 Auto Session Capture</h4>
+                    <p>Snapshots window state on close and keeps up to 5 recently closed sessions ready for instant restoration.</p>
+                </div>
+                <div class="card">
+                    <h4>📑 Bookmark Rules Engine</h4>
+                    <p>Enforces a maximum of 1 Core bookmark + 1 Date bookmark per URL, with automated cleanup tools.</p>
+                </div>
+                <div class="card">
+                    <h4>🎬 Auto Watch Removal</h4>
+                    <p>Detects video playback or active 10s tab viewing and automatically clears matching <code>Next</code> bookmarks.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="preferences">
+            <h2>⚙️ User Preferences & Workflow Rules</h2>
+            <p>The extension strictly follows these curated workflows and user preferences:</p>
+
+            <div class="card" style="margin-bottom: 16px;">
+                <span class="pref-tag">WORKFLOW RULE 1</span>
+                <h4>Session Capture on Window Close</h4>
+                <p>When closing an entire browser window:</p>
+                <ul>
+                    <li>Automatically bookmarks any open, non-bookmarked tab into the <code>Next</code> bookmark folder.</li>
+                    <li>Saves full metadata for all tab URLs in extension memory (up to 5 recent sessions).</li>
+                    <li>Provides <strong>Restore Sessions</strong> in the New Tab toolbar for reopening whole windows or single tabs.</li>
+                </ul>
+            </div>
+
+            <div class="card" style="margin-bottom: 16px;">
+                <span class="pref-tag">WORKFLOW RULE 2</span>
+                <h4>Max 2 Bookmarks Rule (1 Core + 1 Date)</h4>
+                <p>Every bookmarked site/URL is governed by strict categorization:</p>
+                <ul>
+                    <li><strong>Core Bookmark Folders:</strong> <code>S tier</code>, <code>New</code>, <code>Previous</code>, <code>Repeat</code>, <code>Revisit</code>, <code>Next</code>.</li>
+                    <li><strong>Date Bookmark Folders/Titles:</strong> Contains numbers and periods only (regex <code>^[0-9.]+$</code>, e.g. <code>2026.07.19</code>, <code>12.31</code>).</li>
+                    <li><strong>Constraint:</strong> No URL can have more than 1 Core bookmark and 1 Date bookmark (maximum 2 bookmarks total). Auto-bookmarking replaces previous core bookmarks to maintain this limit.</li>
+                </ul>
+            </div>
+
+            <div class="card" style="margin-bottom: 16px;">
+                <span class="pref-tag">WORKFLOW RULE 3</span>
+                <h4>Automated "Next" Bookmark Removal on Video Watch</h4>
+                <p>When watching media saved in the <code>Next</code> bookmark folder:</p>
+                <ul>
+                    <li>Content scripts listen for HTML5 <code>&lt;video&gt;</code> <code>play</code>/<code>playing</code> events with >3s playback or 10s active tab viewing.</li>
+                    <li>Sends a background request to remove the URL from the <code>Next</code> bookmark folder automatically once consumed.</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <span class="pref-tag">WORKFLOW RULE 4</span>
+                <h4>Bookmark Clean-Up Manager</h4>
+                <p>Integrated tool in the New Tab dashboard for library hygiene:</p>
+                <ul>
+                    <li>Scans bookmarks for exact URL duplicates, multi-core folder violations, and multi-date violations.</li>
+                    <li>Provides one-click <strong>Smart Auto-Clean</strong> (retains newest core + date bookmark) and granular selection.</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="building">
+            <h2>🛠 Building & Installation</h2>
+            <h3>Build Commands</h3>
+            <pre><code># Install dependencies
+npm install
+
+# Build for Firefox (Primary Target)
+npm run build:firefox
+
+# Build for Chrome or generic WebExtension
+npm run build:chrome
+npm run build:webext</code></pre>
+
+            <h3>Loading in Firefox</h3>
+            <ol>
+                <li>Open <code>about:debugging</code> in Firefox.</li>
+                <li>Click <strong>This Firefox</strong> in the sidebar.</li>
+                <li>Click <strong>Load Temporary Add-on...</strong></li>
+                <li>Select <code>dist/manifest.json</code> from the built project directory.</li>
+            </ol>
+        </section>
+
+        <section id="structure">
+            <h2>📂 Codebase Sitemap</h2>
+            <ul>
+                <li><code>src/background/captureTab.js</code> — Background coordinator, screenshot engine, window-close session auto-save, bookmark event handlers.</li>
+                <li><code>src/background/bookmarkRules.js</code> — Core vs date folder categorization, duplicate scanning, max 2 bookmark enforcement.</li>
+                <li><code>src/content/videoDetector.js</code> — Video playback detector & active tab duration timer for auto-removing <code>Next</code> bookmarks.</li>
+                <li><code>src/newtab/newtab.js</code> — Dashboard UI, card grid, session history modal, bookmark cleanup manager modal.</li>
+                <li><code>src/popup/</code> & <code>src/options/</code> — Restored legacy popup and global options UI.</li>
+            </ul>
+        </section>
+
+        <section id="backlog">
+            <h2>📋 Product Backlog & Future Ideas</h2>
+            <div class="backlog-item">
+                <div class="backlog-num">1</div>
+                <div>
+                    <strong>Smart Tab Clustering</strong>
+                    <p>Automatically group tabs on the dashboard by top-level domain or AI topic similarity for easier mass management.</p>
+                </div>
+            </div>
+            <div class="backlog-item">
+                <div class="backlog-num">2</div>
+                <div>
+                    <strong>Duplicate Open Tab Merger</strong>
+                    <p>Detect identical open URLs across multiple browser windows and offer a 1-click consolidation button.</p>
+                </div>
+            </div>
+            <div class="backlog-item">
+                <div class="backlog-num">3</div>
+                <div>
+                    <strong>Tab Memory & Resource Indicators</strong>
+                    <p>Display real-time discarded tab indicators and highlight heavy active tabs to optimize browser RAM usage.</p>
+                </div>
+            </div>
+            <div class="backlog-item">
+                <div class="backlog-num">4</div>
+                <div>
+                    <strong>Scheduled Session Export & Backup</strong>
+                    <p>Allow exporting saved window sessions as JSON or auto-syncing session snapshots to cloud storage.</p>
+                </div>
+            </div>
+            <div class="backlog-item">
+                <div class="backlog-num">5</div>
+                <div>
+                    <strong>Customizable Bookmark Rules Engine</strong>
+                    <p>Allow user to customize core folder names, add custom category rules, and adjust date regex patterns in settings.</p>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <p>Tabby Tab Manager &copy; 2026 BillK. Built for Firefox.</p>
+        </footer>
+    </div>
+</body>
+</html>

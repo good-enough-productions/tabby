@@ -283,6 +283,8 @@ async function _persistSessionHistory() {
     await browser.storage.local.set({ [SESSION_HISTORY_KEY]: _sessionHistory });
 }
 
+import { ensureUrlBookmarkedAsNext } from "./bookmarkRules";
+
 async function _saveWindowAsSession(tabs) {
     const { [SESSION_AUTOSAVE_KEY]: autosave } = await browser.storage.local.get(SESSION_AUTOSAVE_KEY);
     if (autosave === false) return;
@@ -308,6 +310,13 @@ async function _saveWindowAsSession(tabs) {
         });
 
     if (entryTabs.length === 0) return;
+
+    // Auto-bookmark non-bookmarked tabs in Next folder
+    for (const t of entryTabs) {
+        if (t.url) {
+            ensureUrlBookmarkedAsNext(t.url, t.title).catch(e => console.error("Auto-bookmark failed:", e));
+        }
+    }
 
     const entry = { savedAt: now, dateKey, tabs: entryTabs };
     // One entry per calendar day; newest entry wins for that day; keep max 3
