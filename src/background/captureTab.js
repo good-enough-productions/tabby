@@ -210,8 +210,14 @@ browser.runtime.onMessage.addListener(message => {
     return refreshPreviewCache(message["tabId"], message["quality"], true);
 });
 browser.runtime.onMessage.addListener(message => {
-    if (message["_"] !== "preview:ensureMany") return;
-    return ensurePreviewCacheForTabs(message["tabIds"], message["quality"], message["force"]);
+    if (message["_"] === "preview:ensureMany") {
+        return ensurePreviewCacheForTabs(message["tabIds"], message["quality"], message["force"]);
+    }
+});
+browser.runtime.onMessage.addListener(message => {
+    if (message["_"] === "bookmark:removeNext") {
+        return removeNextBookmark(message.url);
+    }
 });
 browser.runtime.onMessage.addListener(message => {
     if (message["_"] !== "tabs:getMeta") return;
@@ -283,7 +289,7 @@ async function _persistSessionHistory() {
     await browser.storage.local.set({ [SESSION_HISTORY_KEY]: _sessionHistory });
 }
 
-import { ensureUrlBookmarkedAsNext } from "./bookmarkRules";
+import { ensureUrlBookmarkedAsNext, removeNextBookmark } from "./bookmarkRules";
 
 async function _saveWindowAsSession(tabs) {
     const { [SESSION_AUTOSAVE_KEY]: autosave } = await browser.storage.local.get(SESSION_AUTOSAVE_KEY);
