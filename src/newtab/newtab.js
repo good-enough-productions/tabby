@@ -1641,12 +1641,32 @@ const settingsBookmarksDesc = document.createElement("p");
 settingsBookmarksDesc.className = "tabby-settings-copy";
 settingsBookmarksDesc.textContent = "Analyze and remove exact duplicates or bookmarks that violate core folder rules (Max 2 rule).";
 
+const scanBookmarksBtn = document.createElement("button");
+scanBookmarksBtn.className = "tabby-button -secondary";
+scanBookmarksBtn.textContent = "Scan Bookmarks";
+scanBookmarksBtn.title = "Scan your bookmarks library for duplicate URLs and folder rule violations (Max 2 rule).";
+scanBookmarksBtn.style.marginTop = "10px";
+
 const openStudioBtn = document.createElement("button");
 openStudioBtn.className = "tabby-button -secondary";
 openStudioBtn.textContent = "Open Bookmark Studio";
 openStudioBtn.title = "Open the full-screen Bookmark Maintenance Studio modal for bulk sorting, filtering, batch cleaning, and spot-checking.";
 openStudioBtn.style.marginTop = "10px";
 openStudioBtn.style.marginLeft = "8px";
+
+const bookmarksResultDiv = document.createElement("div");
+bookmarksResultDiv.className = "tabby-settings-copy";
+bookmarksResultDiv.style.marginTop = "10px";
+
+const cleanBookmarksBtn = document.createElement("button");
+cleanBookmarksBtn.className = "tabby-button -primary";
+cleanBookmarksBtn.textContent = "Clean Violations";
+cleanBookmarksBtn.title = "Automatically remove duplicate bookmarks while preserving at most one Core folder entry and one Date folder entry per URL.";
+cleanBookmarksBtn.style.marginTop = "10px";
+cleanBookmarksBtn.style.display = "none";
+
+const bookmarkReportDiv = document.createElement("div");
+bookmarkReportDiv.className = "tabby-bookmark-report";
 
 settingsBookmarksSection.appendChild(settingsBookmarksHeading);
 settingsBookmarksSection.appendChild(settingsBookmarksDesc);
