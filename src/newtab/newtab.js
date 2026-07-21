@@ -904,7 +904,7 @@ style.textContent = `
         display: block;
         font-size: 13px;
         font-weight: 700;
-        color: var(--tabby-ink);
+        color: #f8fafc;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -927,8 +927,8 @@ style.textContent = `
     .tabby-report-pill {
         font-size: 11px;
         font-weight: 700;
-        color: var(--tabby-muted);
-        background: rgba(255, 255, 255, 0.08);
+        color: #e2e8f0;
+        background: rgba(255, 255, 255, 0.12);
         padding: 3px 8px;
         border-radius: 999px;
         flex-shrink: 0;
@@ -945,15 +945,15 @@ style.textContent = `
         align-items: center;
         gap: 10px;
         padding: 6px 10px;
-        background: rgba(255, 255, 255, 0.03);
+        background: rgba(255, 255, 255, 0.05);
         border-radius: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
         transition: background 150ms ease, opacity 150ms ease;
     }
 
     .tabby-report-item.-to-remove {
-        background: rgba(248, 113, 113, 0.05);
-        border-color: rgba(248, 113, 113, 0.2);
+        background: rgba(248, 113, 113, 0.08);
+        border-color: rgba(248, 113, 113, 0.25);
     }
 
     .tabby-report-item.-deleted {
@@ -977,21 +977,21 @@ style.textContent = `
     }
 
     .tabby-report-badge.-keep {
-        background: rgba(52, 211, 153, 0.18);
+        background: rgba(52, 211, 153, 0.2);
         color: #34d399;
-        border: 1px solid rgba(52, 211, 153, 0.35);
+        border: 1px solid rgba(52, 211, 153, 0.4);
     }
 
     .tabby-report-badge.-remove {
-        background: rgba(248, 113, 113, 0.18);
+        background: rgba(248, 113, 113, 0.2);
         color: #f87171;
-        border: 1px solid rgba(248, 113, 113, 0.35);
+        border: 1px solid rgba(248, 113, 113, 0.4);
     }
 
     .tabby-report-badge.-deleted {
-        background: rgba(148, 163, 184, 0.12);
-        color: #94a3b8;
-        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: rgba(148, 163, 184, 0.15);
+        color: #cbd5e1;
+        border: 1px solid rgba(148, 163, 184, 0.3);
         cursor: default;
     }
 
@@ -1002,14 +1002,14 @@ style.textContent = `
     }
 
     .tabby-report-folder {
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 700;
-        color: var(--tabby-ink);
+        color: #f8fafc;
     }
 
     .tabby-report-item-title {
-        font-size: 11px;
-        color: var(--tabby-muted);
+        font-size: 12px;
+        color: #cbd5e1;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1020,8 +1020,8 @@ style.textContent = `
         position: fixed;
         inset: 0;
         z-index: 10000;
-        background: rgba(15, 23, 42, 0.75);
-        backdrop-filter: blur(12px);
+        background: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(14px);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1040,14 +1040,14 @@ style.textContent = `
         width: 100%;
         max-width: 1240px;
         height: 88vh;
-        background: rgba(15, 23, 42, 0.95);
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: #0f172a;
+        border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 20px;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        color: var(--tabby-ink);
+        color: #f8fafc;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
@@ -1056,8 +1056,8 @@ style.textContent = `
         justify-content: space-between;
         align-items: center;
         padding: 20px 24px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        background: rgba(30, 41, 59, 0.5);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(30, 41, 59, 0.7);
     }
 
     .tabby-studio-title-group h2 {
@@ -1070,13 +1070,13 @@ style.textContent = `
     .tabby-studio-title-group p {
         margin: 0;
         font-size: 0.85rem;
-        color: var(--tabby-muted);
+        color: #cbd5e1;
     }
 
     .tabby-studio-close-btn {
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        color: var(--tabby-ink);
+        background: rgba(255, 255, 255, 0.12);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #f8fafc;
         padding: 8px 16px;
         border-radius: 8px;
         font-weight: 700;
@@ -1086,7 +1086,7 @@ style.textContent = `
     }
 
     .tabby-studio-close-btn:hover {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.25);
     }
 
     .tabby-studio-toolbar {
@@ -1094,28 +1094,28 @@ style.textContent = `
         flex-wrap: wrap;
         gap: 12px;
         padding: 16px 24px;
-        background: rgba(15, 23, 42, 0.6);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(15, 23, 42, 0.8);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         align-items: center;
     }
 
     .tabby-studio-search {
         flex: 1;
         min-width: 240px;
-        background: rgba(30, 41, 59, 0.8);
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(30, 41, 59, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 8px;
         padding: 8px 14px;
-        color: #fff;
+        color: #f8fafc;
         font-size: 0.9rem;
     }
 
     .tabby-studio-select {
-        background: rgba(30, 41, 59, 0.8);
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(30, 41, 59, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 8px;
         padding: 8px 12px;
-        color: #fff;
+        color: #f8fafc;
         font-size: 0.85rem;
         cursor: pointer;
     }
@@ -1127,8 +1127,8 @@ style.textContent = `
         flex-wrap: wrap;
         gap: 12px;
         padding: 12px 24px;
-        background: rgba(30, 41, 59, 0.3);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(30, 41, 59, 0.5);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .tabby-studio-action-left {
@@ -1145,7 +1145,7 @@ style.textContent = `
 
     .tabby-studio-stats {
         font-size: 0.85rem;
-        color: var(--tabby-muted);
+        color: #cbd5e1;
         font-weight: 600;
     }
 
