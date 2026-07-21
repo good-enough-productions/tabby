@@ -289,7 +289,7 @@ async function _persistSessionHistory() {
     await browser.storage.local.set({ [SESSION_HISTORY_KEY]: _sessionHistory });
 }
 
-import { ensureUrlBookmarkedAsNext, removeNextBookmark } from "./bookmarkRules";
+import { ensureUrlBookmarkedAsNextOnlyIfUnbookmarked, removeNextBookmark } from "./bookmarkRules";
 
 async function _saveWindowAsSession(tabs) {
     const { [SESSION_AUTOSAVE_KEY]: autosave } = await browser.storage.local.get(SESSION_AUTOSAVE_KEY);
@@ -317,10 +317,10 @@ async function _saveWindowAsSession(tabs) {
 
     if (entryTabs.length === 0) return;
 
-    // Auto-bookmark non-bookmarked tabs in Next folder
+    // Auto-bookmark non-bookmarked tabs in Next folder only if they have NO bookmarks anywhere
     for (const t of entryTabs) {
         if (t.url) {
-            ensureUrlBookmarkedAsNext(t.url, t.title).catch(e => console.error("Auto-bookmark failed:", e));
+            ensureUrlBookmarkedAsNextOnlyIfUnbookmarked(t.url, t.title).catch(e => console.error("Auto-bookmark failed:", e));
         }
     }
 

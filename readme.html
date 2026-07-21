@@ -292,7 +292,7 @@
                 <h4>Session Capture on Window Close</h4>
                 <p>When closing an entire browser window:</p>
                 <ul>
-                    <li>Automatically bookmarks any open, non-bookmarked tab into the <code>Next</code> bookmark folder.</li>
+                    <li>Automatically bookmarks open tabs into the <code>Next</code> folder <strong>only if they have zero existing bookmarks anywhere in the browser</strong>. If a URL is already bookmarked in any folder, auto-bookmarking is skipped to prevent duplicate generation.</li>
                     <li>Saves full metadata for all tab URLs in extension memory (up to 5 recent sessions).</li>
                     <li>Provides <strong>Restore Sessions</strong> in the New Tab toolbar for reopening whole windows or single tabs.</li>
                 </ul>
@@ -300,12 +300,13 @@
 
             <div class="card" style="margin-bottom: 16px;">
                 <span class="pref-tag">WORKFLOW RULE 2</span>
-                <h4>Max 2 Bookmarks Rule (1 Core + 1 Date)</h4>
-                <p>Every bookmarked site/URL is governed by strict categorization:</p>
+                <h4>Max 2 Bookmarks Rule (1 Core + 1 Date) & Hierarchy</h4>
+                <p>Every bookmarked site/URL is governed by strict categorization and priority rules:</p>
                 <ul>
-                    <li><strong>Core Bookmark Folders:</strong> <code>S tier</code>, <code>New</code>, <code>Previous</code>, <code>Repeat</code>, <code>Revisit</code>, <code>Next</code>.</li>
+                    <li><strong>Core Bookmark Folders (Hierarchy Order):</strong> <code>S tier</code> &gt; <code>New</code> &gt; <code>Previous</code> &gt; <code>Repeat</code> &gt; <code>Revisit</code> &gt; <code>Next</code>.</li>
+                    <li><strong>Core Priority Resolution:</strong> When resolving duplicate Core folder bookmarks, Tabby preserves higher priority Core folders (e.g. <code>S tier</code> over <code>Next</code>). If choosing between <code>Next</code> and any other Core folder, the other Core folder is kept and <code>Next</code> is marked for removal.</li>
                     <li><strong>Date Bookmark Folders/Titles:</strong> Contains numbers and periods only (regex <code>^[0-9.]+$</code>, e.g. <code>2026.07.19</code>, <code>12.31</code>).</li>
-                    <li><strong>Constraint:</strong> No URL can have more than 1 Core bookmark and 1 Date bookmark (maximum 2 bookmarks total). Auto-bookmarking replaces previous core bookmarks to maintain this limit.</li>
+                    <li><strong>Constraint:</strong> No URL can have more than 1 Core bookmark and 1 Date bookmark (maximum 2 bookmarks total). URL normalization strips fragments and trailing slashes for accurate duplicate grouping.</li>
                 </ul>
             </div>
 
@@ -314,18 +315,19 @@
                 <h4>Automated "Next" Bookmark Removal on Video Watch</h4>
                 <p>When watching media saved in the <code>Next</code> bookmark folder:</p>
                 <ul>
-                    <li>Content scripts listen for HTML5 <code>&lt;video&gt;</code> <code>play</code>/<code>playing</code> events with >3s playback or 10s active tab viewing.</li>
+                    <li>Content scripts listen for HTML5 <code>&lt;video&gt;</code> <code>play</code>/<code>playing</code> events with &gt;3s playback or 10s active tab viewing.</li>
                     <li>Sends a background request to remove the URL from the <code>Next</code> bookmark folder automatically once consumed.</li>
                 </ul>
             </div>
 
             <div class="card">
                 <span class="pref-tag">WORKFLOW RULE 4</span>
-                <h4>Bookmark Clean-Up Manager</h4>
-                <p>Integrated tool in the New Tab dashboard for library hygiene:</p>
+                <h4>Bookmark Maintenance Studio & Performance Engine</h4>
+                <p>Integrated tool in the New Tab dashboard for library hygiene and responsiveness:</p>
                 <ul>
-                    <li>Scans bookmarks for exact URL duplicates, multi-core folder violations, and multi-date violations.</li>
-                    <li>Provides one-click <strong>Smart Auto-Clean</strong> (retains newest core + date bookmark) and granular selection.</li>
+                    <li>Scans bookmarks for normalized URL duplicates, multi-core folder violations, and multi-date violations.</li>
+                    <li>Provides one-click <strong>Smart Auto-Clean</strong> (retains highest priority core + date bookmark) and granular selection.</li>
+                    <li><strong>Responsiveness Architecture:</strong> Uses 200ms debounced event listeners, render execution guards, and in-memory TTL caching to keep Chrome/Firefox native navigation bar bookmarking star clicks fast and responsive.</li>
                 </ul>
             </div>
         </section>

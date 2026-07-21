@@ -2757,23 +2757,56 @@ async function getVisibleTabs() {
         .sort((left, right) => left.index - right.index);
 }
 
+let _urlBookmarkCache = new Map();
+let _urlBookmarkCacheTime = 0;
+
+function clearBookmarkCache() {
+    _urlBookmarkCache.clear();
+    _urlBookmarkCacheTime = Date.now();
+}
+
 async function getBookmarkStateForTabs(tabs) {
     if (!browser.bookmarks?.search) {
         return {};
     }
 
+    let now = Date.now();
+    if (now - _urlBookmarkCacheTime > 5000) {
+        _urlBookmarkCache.clear();
+        _urlBookmarkCacheTime = now;
+    }
+
     let uniqueUrls = new Map();
+    let urlsToQuery = [];
+
     for (let tab of tabs) {
         let url = tab.url || tab.pendingUrl;
         if (url && !uniqueUrls.has(url)) {
-            uniqueUrls.set(url, false);
+            if (_urlBookmarkCache.has(url)) {
+                uniqueUrls.set(url, _urlBookmarkCache.get(url));
+            } else {
+                uniqueUrls.set(url, false);
+                urlsToQuery.push(url);
+            }
         }
     }
 
-    await Promise.all(Array.from(uniqueUrls.keys()).map(async url => {
-        let matches = await browser.bookmarks.search({ url });
-        uniqueUrls.set(url, matches.length > 0);
-    }));
+    if (urlsToQuery.length > 0) {
+        const batchSize = 10;
+        for (let i = 0; i < urlsToQuery.length; i += batchSize) {
+            const batch = urlsToQuery.slice(i, i + batchSize);
+            await Promise.all(batch.map(async url => {
+                try {
+                    let matches = await browser.bookmarks.search({ url });
+                    let isBookmarked = matches && matches.length > 0;
+                    _urlBookmarkCache.set(url, isBookmarked);
+                    uniqueUrls.set(url, isBookmarked);
+                } catch (e) {
+                    uniqueUrls.set(url, false);
+                }
+            }));
+        }
+    }
 
     let result = {};
     for (let tab of tabs) {
@@ -3405,10 +3438,36 @@ window.addEventListener("keydown", event => {
     }
 });
 
+let _rerenderTimeout = null;
+let _isRendering = false;
+let _pendingRerender = false;
+
 const rerender = () => {
-    renderTabs().catch(error => {
-        setStatus(`Failed to load tabs: ${error}`);
-    });
+    if (_rerenderTimeout) clearTimeout(_rerenderTimeout);
+    _rerenderTimeout = setTimeout(async () => {
+        _rerenderTimeout = null;
+        if (_isRendering) {
+            _pendingRerender = true;
+            return;
+        }
+        _isRendering = true;
+        try {
+            await renderTabs();
+        } catch (error) {
+            setStatus(`Failed to load tabs: ${error}`);
+        } finally {
+            _isRendering = false;
+            if (_pendingRerender) {
+                _pendingRerender = false;
+                rerender();
+            }
+        }
+    }, 200);
+};
+
+const onBookmarkChanged = () => {
+    clearBookmarkCache();
+    rerender();
 };
 
 browser.tabs.onActivated.addListener(rerender);
@@ -3431,9 +3490,9 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
     }
 });
 if (browser.bookmarks?.onCreated) {
-    browser.bookmarks.onCreated.addListener(rerender);
-    browser.bookmarks.onRemoved.addListener(rerender);
-    browser.bookmarks.onChanged.addListener(rerender);
+    browser.bookmarks.onCreated.addListener(onBookmarkChanged);
+    browser.bookmarks.onRemoved.addListener(onBookmarkChanged);
+    browser.bookmarks.onChanged.addListener(onBookmarkChanged);
 }
 window.addEventListener("focus", rerender);
 
