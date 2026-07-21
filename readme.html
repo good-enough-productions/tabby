@@ -305,8 +305,9 @@
                 <ul>
                     <li><strong>Core Bookmark Folders (Hierarchy Order):</strong> <code>S tier</code> &gt; <code>New</code> &gt; <code>Previous</code> &gt; <code>Repeat</code> &gt; <code>Revisit</code> &gt; <code>Next</code>.</li>
                     <li><strong>Core Priority Resolution:</strong> When resolving duplicate Core folder bookmarks, Tabby preserves higher priority Core folders (e.g. <code>S tier</code> over <code>Next</code>). If choosing between <code>Next</code> and any other Core folder, the other Core folder is kept and <code>Next</code> is marked for removal.</li>
+                    <li><strong>General User Bookmarks Preservation:</strong> Bookmarks in regular user folders (e.g. <code>Bookmarks Bar</code>, <code>Other Bookmarks</code>, custom folders) are preserved alongside Core/Date bookmarks. They are only deduplicated if identical copies exist in the same folder.</li>
+                    <li><strong>Zero Wipeout Safety Guarantee:</strong> Smart clean enforces a hard guarantee that a URL's bookmarks will <strong>never</strong> be reduced to zero. At least one bookmark per URL is always protected and preserved.</li>
                     <li><strong>Date Bookmark Folders/Titles:</strong> Contains numbers and periods only (regex <code>^[0-9.]+$</code>, e.g. <code>2026.07.19</code>, <code>12.31</code>).</li>
-                    <li><strong>Constraint:</strong> No URL can have more than 1 Core bookmark and 1 Date bookmark (maximum 2 bookmarks total). URL normalization strips fragments and trailing slashes for accurate duplicate grouping.</li>
                 </ul>
             </div>
 
@@ -326,7 +327,7 @@
                 <p>Integrated tool in the New Tab dashboard for library hygiene and responsiveness:</p>
                 <ul>
                     <li>Scans bookmarks for normalized URL duplicates, multi-core folder violations, and multi-date violations.</li>
-                    <li>Provides one-click <strong>Smart Auto-Clean</strong> (retains highest priority core + date bookmark) and granular selection.</li>
+                    <li>Provides one-click <strong>Smart Auto-Clean</strong> (retains highest priority core + date + general user bookmarks) and granular selection.</li>
                     <li><strong>Responsiveness Architecture:</strong> Uses 200ms debounced event listeners, render execution guards, and in-memory TTL caching to keep Chrome/Firefox native navigation bar bookmarking star clicks fast and responsive.</li>
                 </ul>
             </div>

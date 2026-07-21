@@ -25,10 +25,10 @@ export function isDateString(text) {
 }
 
 export function categorizeFolderOrBookmark(folderName, title) {
-    if (isCoreFolder(folderName) || isCoreFolder(title)) {
+    if (isCoreFolder(folderName)) {
         return "core";
     }
-    if (isDateString(folderName) || isDateString(title)) {
+    if (isDateString(folderName)) {
         return "date";
     }
     return "other";
@@ -241,16 +241,6 @@ export async function scanAndAnalyzeDuplicates() {
         let dateCount = 0;
         let otherCount = 0;
 
-        for (const item of list) {
-            const cat = categorizeFolderOrBookmark(item.categoryParentTitle, item.title);
-            if (cat === "core") coreCount++;
-            else if (cat === "date") dateCount++;
-            else otherCount++;
-        }
-
-        // Hierarchy-based sorting:
-        // For Core items, sort by priority hierarchy: S tier (0) > New (1) > Previous (2) > Repeat (3) > Revisit (4) > Next (5)
-        // For Date/Other items, sort by newest dateAdded.
         const coreItems = [];
         const dateItems = [];
         const otherItems = [];
@@ -258,9 +248,16 @@ export async function scanAndAnalyzeDuplicates() {
         for (const item of list) {
             const cat = categorizeFolderOrBookmark(item.categoryParentTitle, item.title);
             item.category = cat;
-            if (cat === "core") coreItems.push(item);
-            else if (cat === "date") dateItems.push(item);
-            else otherItems.push(item);
+            if (cat === "core") {
+                coreCount++;
+                coreItems.push(item);
+            } else if (cat === "date") {
+                dateCount++;
+                dateItems.push(item);
+            } else {
+                otherCount++;
+                otherItems.push(item);
+            }
         }
 
         coreItems.sort((a, b) => {
@@ -273,14 +270,11 @@ export async function scanAndAnalyzeDuplicates() {
         dateItems.sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
         otherItems.sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
 
-        let keptCore = false;
-        let keptDate = false;
-        let keptGeneral = false;
         let deleteCount = 0;
-
         const annotatedBookmarks = [];
 
-        // 1. Process Core items: keep at most 1 highest priority Core item
+        // 1. Process Core items: keep max 1 highest priority Core item
+        let keptCore = false;
         for (const item of coreItems) {
             if (!keptCore) {
                 keptCore = true;
@@ -292,7 +286,8 @@ export async function scanAndAnalyzeDuplicates() {
             annotatedBookmarks.push(item);
         }
 
-        // 2. Process Date items: keep at most 1 newest Date item
+        // 2. Process Date items: keep max 1 newest Date item
+        let keptDate = false;
         for (const item of dateItems) {
             if (!keptDate) {
                 keptDate = true;
@@ -304,16 +299,27 @@ export async function scanAndAnalyzeDuplicates() {
             annotatedBookmarks.push(item);
         }
 
-        // 3. Process Other items: keep at most 1 General item IF neither Core nor Date was kept
+        // 3. Process General items: General items in regular user folders are preserved.
+        // Deduplicate only if there are duplicate General bookmarks in the same folder or exact redundant copies.
+        const seenGeneralFolders = new Set();
         for (const item of otherItems) {
-            if (!keptGeneral && !keptCore && !keptDate) {
-                keptGeneral = true;
+            const folderKey = item.parentId || item.parentTitle || "root";
+            if (!seenGeneralFolders.has(folderKey)) {
+                seenGeneralFolders.add(folderKey);
                 item.willKeep = true;
             } else {
                 item.willKeep = false;
                 deleteCount++;
             }
             annotatedBookmarks.push(item);
+        }
+
+        // Safety Guarantee: Ensure at least one bookmark in the group has willKeep = true
+        if (!annotatedBookmarks.some(b => b.willKeep === true)) {
+            if (annotatedBookmarks.length > 0) {
+                annotatedBookmarks[0].willKeep = true;
+                deleteCount = Math.max(0, deleteCount - 1);
+            }
         }
 
         // Sort output list so kept items appear first
@@ -376,6 +382,14 @@ export async function smartCleanBookmarks(groupsToClean = null) {
     const itemsToDelete = [];
 
     for (const group of groups) {
+        // Safety Guarantee: Never delete all bookmarks of a URL group!
+        const remainingToKeep = group.bookmarks.filter(b => b.willKeep !== false && !b.deleted);
+        if (remainingToKeep.length === 0 && group.bookmarks.length > 0) {
+            // Force keep the first (highest priority / newest) non-deleted bookmark
+            const fallbackItem = group.bookmarks.find(b => !b.deleted) || group.bookmarks[0];
+            fallbackItem.willKeep = true;
+        }
+
         for (const item of group.bookmarks) {
             if (item.willKeep === false && !item.deleted) {
                 itemsToDelete.push(item);
