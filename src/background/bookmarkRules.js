@@ -108,6 +108,8 @@ export async function getBookmarkParentTitles(bookmarks) {
     return parentMap;
 }
 
+let cachedNextFolderId = null;
+
 export async function ensureUrlBookmarkedAsNextOnlyIfUnbookmarked(url, title = "") {
     if (!browser.bookmarks?.search || !url) return false;
     const existing = await browser.bookmarks.search({ url });
@@ -116,14 +118,28 @@ export async function ensureUrlBookmarkedAsNextOnlyIfUnbookmarked(url, title = "
         return false;
     }
 
-    const nextFolderId = await findOrCreateFolder("Next");
-    if (!nextFolderId) return false;
+    if (!cachedNextFolderId) {
+        cachedNextFolderId = await findOrCreateFolder("Next");
+    }
+    if (!cachedNextFolderId) return false;
 
-    await browser.bookmarks.create({
-        parentId: nextFolderId,
-        title: title || url,
-        url
-    });
+    try {
+        await browser.bookmarks.create({
+            parentId: cachedNextFolderId,
+            title: title || url,
+            url
+        });
+    } catch (e) {
+        // If folder was deleted or missing, invalidate cache and retry once
+        cachedNextFolderId = await findOrCreateFolder("Next");
+        if (cachedNextFolderId) {
+            await browser.bookmarks.create({
+                parentId: cachedNextFolderId,
+                title: title || url,
+                url
+            }).catch(() => {});
+        }
+    }
     return true;
 }
 
@@ -131,9 +147,12 @@ export async function ensureUrlBookmarkedAsNext(url, title = "") {
     return ensureUrlBookmarkedAsNextOnlyIfUnbookmarked(url, title);
 }
 
-export async function removeNextBookmark(url) {
+export async function moveNextToRepeatBookmark(url) {
     if (!browser.bookmarks?.getTree || !url) return false;
     const tree = await browser.bookmarks.getTree();
+    
+    const repeatFolderId = await findOrCreateFolder("Repeat");
+    if (!repeatFolderId) return false;
     
     function cleanUrl(u) {
         try {
@@ -147,9 +166,9 @@ export async function removeNextBookmark(url) {
     }
     
     const targetClean = cleanUrl(url);
-    let removedCount = 0;
+    let movedCount = 0;
     
-    function searchAndRemove(nodes, inNext = false) {
+    function searchAndMove(nodes, inNext = false) {
         for (const node of nodes) {
             const isNext = inNext || (node.title?.trim().toLowerCase() === "next");
             
@@ -170,18 +189,18 @@ export async function removeNextBookmark(url) {
                 }
                 
                 if (isMatch) {
-                    browser.bookmarks.remove(node.id).catch(() => {});
-                    removedCount++;
+                    browser.bookmarks.move(node.id, { parentId: repeatFolderId }).catch(() => {});
+                    movedCount++;
                 }
             }
             if (node.children) {
-                searchAndRemove(node.children, isNext);
+                searchAndMove(node.children, isNext);
             }
         }
     }
     
-    searchAndRemove(tree);
-    return removedCount > 0;
+    searchAndMove(tree);
+    return movedCount > 0;
 }
 
 export async function scanAndAnalyzeDuplicates() {

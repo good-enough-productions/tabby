@@ -1,6 +1,6 @@
 /**
  * Video Detector
- * Listens for HTML5 video playback to trigger auto-removal of the Next bookmark.
+ * Listens for HTML5 video playback to trigger auto-move of the Next bookmark to Repeat.
  */
 
 export function initVideoDetector() {
@@ -13,7 +13,7 @@ export function initVideoDetector() {
         hasTriggered = true;
         
         browser.runtime.sendMessage({
-            _: "bookmark:removeNext",
+            _: "bookmark:moveToRepeat",
             url: window.location.href
         }).catch(() => {});
     }

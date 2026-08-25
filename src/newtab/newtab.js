@@ -2,6 +2,7 @@ import "Polyfill";
 import { resolveDefault } from "../options/exports";
 import { smartCleanBookmarks, scanAndAnalyzeDuplicates } from "../background/bookmarkRules";
 import { $local$ } from "../tapi/store";
+import { tokenizeTitle, extractKeywordCloud, extractNgrams, extractNonAdjacentCoOccurrences, clusterByDomainAndTheme, generateLlmPrompt, recordTabVisit, getTabHistoryAnalytics } from "./intelligence";
 
 const root = document.getElementById("app");
 const NEWTAB_URL = browser.runtime.getURL("newtab/newtab.html");
@@ -1241,6 +1242,304 @@ style.textContent = `
         background: rgba(248, 113, 113, 0.15);
         color: #f87171;
     }
+
+    /* Title Only Detail Mode */
+    .tabby-card.-title-only {
+        min-height: auto;
+        padding: 12px 14px;
+        border-left: 4px solid var(--tabby-accent);
+    }
+
+    .tabby-title-only-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 8px;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .tabby-title-only-favicon {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+        border-radius: 4px;
+    }
+
+    .tabby-title-only-title {
+        font-weight: 700;
+        font-size: 14px;
+        color: var(--tabby-ink);
+        line-height: 1.35;
+        word-break: break-word;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .tabby-title-only-domain {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--tabby-muted);
+        background: rgba(19, 91, 161, 0.08);
+        padding: 2px 8px;
+        border-radius: 999px;
+        white-space: nowrap;
+    }
+
+    /* Tab & Title Intelligence Suite Modal */
+    .tabby-intelligence-scrim {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.75);
+        backdrop-filter: blur(8px);
+        z-index: 2000;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 200ms ease;
+    }
+
+    .tabby-intelligence-scrim.-open {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .tabby-intelligence-modal {
+        position: fixed;
+        top: 4vh;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        width: 94vw;
+        max-width: 1240px;
+        height: 92vh;
+        background: #0f172a;
+        color: #f8fafc;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        z-index: 2001;
+        display: flex;
+        flex-direction: column;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 200ms ease, transform 200ms ease;
+        overflow: hidden;
+    }
+
+    .tabby-intelligence-modal.-open {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    .tabby-intel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 28px;
+        background: rgba(30, 41, 59, 0.7);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .tabby-intel-title-group h2 {
+        font-size: 1.5rem;
+        font-weight: 800;
+        background: linear-gradient(to right, #38bdf8, #818cf8);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0 0 4px 0;
+    }
+
+    .tabby-intel-title-group p {
+        color: #94a3b8;
+        font-size: 0.88rem;
+        margin: 0;
+    }
+
+    .tabby-intel-nav {
+        display: flex;
+        gap: 10px;
+        padding: 12px 28px;
+        background: rgba(15, 23, 42, 0.95);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .tabby-intel-nav-btn {
+        background: transparent;
+        border: 1px solid transparent;
+        color: #94a3b8;
+        padding: 8px 18px;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 0.88rem;
+        cursor: pointer;
+        transition: all 150ms ease;
+    }
+
+    .tabby-intel-nav-btn:hover {
+        color: #f8fafc;
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .tabby-intel-nav-btn.-active {
+        color: #38bdf8;
+        background: rgba(56, 189, 248, 0.15);
+        border-color: rgba(56, 189, 248, 0.35);
+    }
+
+    .tabby-intel-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .tabby-intel-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(30, 41, 59, 0.4);
+        padding: 14px 18px;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .tabby-intel-search {
+        flex: 1;
+        min-width: 240px;
+        background: #090d16;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: #f8fafc;
+        padding: 8px 14px;
+        border-radius: 10px;
+        font-size: 0.9rem;
+    }
+
+    .tabby-intel-select {
+        background: #090d16;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: #f8fafc;
+        padding: 8px 14px;
+        border-radius: 10px;
+        font-size: 0.88rem;
+    }
+
+    .tabby-intel-table-container {
+        overflow-x: auto;
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(15, 23, 42, 0.6);
+    }
+
+    .tabby-intel-table {
+        width: 100%;
+        border-collapse: collapse;
+        color: #e2e8f0;
+        font-size: 0.88rem;
+        text-align: left;
+    }
+
+    .tabby-intel-table th {
+        padding: 12px 16px;
+        background: rgba(30, 41, 59, 0.9);
+        color: #38bdf8;
+        font-weight: 700;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        white-space: nowrap;
+    }
+
+    .tabby-intel-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        vertical-align: middle;
+    }
+
+    .tabby-intel-table tr:hover td {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .tabby-intel-pill {
+        display: inline-block;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #94a3b8;
+    }
+
+    .tabby-intel-pill.-active {
+        background: rgba(52, 211, 153, 0.15);
+        color: #34d399;
+    }
+
+    .tabby-intel-pill.-warning {
+        background: rgba(251, 191, 36, 0.15);
+        color: #fbbf24;
+    }
+
+    .tabby-intel-cloud {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 18px;
+        background: rgba(30, 41, 59, 0.4);
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .tabby-intel-bubble {
+        background: rgba(56, 189, 248, 0.12);
+        border: 1px solid rgba(56, 189, 248, 0.25);
+        color: #38bdf8;
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 150ms ease;
+    }
+
+    .tabby-intel-bubble:hover {
+        background: #38bdf8;
+        color: #0f172a;
+        transform: translateY(-2px);
+    }
+
+    .tabby-intel-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 16px;
+    }
+
+    .tabby-intel-section-card {
+        background: rgba(30, 41, 59, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 14px;
+        padding: 18px;
+    }
+
+    .tabby-intel-section-card h3 {
+        color: #38bdf8;
+        font-size: 1.1rem;
+        margin-bottom: 12px;
+    }
+
+    .tabby-intel-textarea {
+        width: 100%;
+        min-height: 380px;
+        background: #090d16;
+        color: #7dd3fc;
+        font-family: "Fira Code", monospace;
+        font-size: 0.88rem;
+        padding: 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        resize: vertical;
+        box-sizing: border-box;
+    }
 `;
 document.head.appendChild(style);
 
@@ -1286,7 +1585,8 @@ const detailModeButtons = {};
 for (let [value, label, btnTitle] of [
     ["none", "No details", "Screenshot only \u2014 top controls also collapse to a single icon"],
     ["minimal", "Minimal", "Screenshot plus Open, Pin, Reload, Recapture, and Close action buttons"],
-    ["full", "Full", "Action buttons plus URL, title, status pill, and information badges"]
+    ["full", "Full", "Action buttons plus URL, title, status pill, and information badges"],
+    ["title", "Title Only", "Title-focused ultra-compact card layout without screenshot preview"]
 ]) {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -1359,7 +1659,16 @@ openRandomButton.disabled = true;
 
 const heroCollapsibleActions = document.createElement("div");
 heroCollapsibleActions.className = "tabby-hero-collapsible-actions";
+
+const openIntelHeaderBtn = document.createElement("button");
+openIntelHeaderBtn.type = "button";
+openIntelHeaderBtn.className = "tabby-button -secondary";
+openIntelHeaderBtn.textContent = "\ud83d\udce1 Tab Intelligence";
+openIntelHeaderBtn.title = "Open the Tab & Title Intelligence Suite for datatable view, co-occurrence analytics, bookmark audit, and prompt synthesis.";
+openIntelHeaderBtn.addEventListener("click", () => openIntelligenceModal("table"));
+
 heroCollapsibleActions.appendChild(detailModeSelector);
+heroCollapsibleActions.appendChild(openIntelHeaderBtn);
 heroCollapsibleActions.appendChild(recaptureButton);
 heroCollapsibleActions.appendChild(resetFiltersButton);
 heroCollapsibleActions.appendChild(bookmarkFolderSelect);
@@ -1549,7 +1858,8 @@ const settingsDetailModeButtons = {};
 for (let [value, label, btnTitle] of [
     ["none", "No details", "Screenshot only \u2014 top controls also collapse to a single icon"],
     ["minimal", "Minimal", "Screenshot plus Open, Pin, Reload, Recapture, and Close action buttons"],
-    ["full", "Full", "Action buttons plus URL, title, status pill, and information badges"]
+    ["full", "Full", "Action buttons plus URL, title, status pill, and information badges"],
+    ["title", "Title Only", "Title-focused ultra-compact card layout without screenshot preview"]
 ]) {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -1668,10 +1978,19 @@ cleanBookmarksBtn.style.display = "none";
 const bookmarkReportDiv = document.createElement("div");
 bookmarkReportDiv.className = "tabby-bookmark-report";
 
+const openIntelSettingsBtn = document.createElement("button");
+openIntelSettingsBtn.className = "tabby-button -secondary";
+openIntelSettingsBtn.textContent = "\ud83d\udce1 Open Tab & Title Intelligence Suite";
+openIntelSettingsBtn.title = "Open datatable manager, keyword cloud, co-occurrence analytics, and LLM prompt synthesizer.";
+openIntelSettingsBtn.style.marginTop = "10px";
+openIntelSettingsBtn.style.marginLeft = "8px";
+openIntelSettingsBtn.addEventListener("click", () => openIntelligenceModal("table"));
+
 settingsBookmarksSection.appendChild(settingsBookmarksHeading);
 settingsBookmarksSection.appendChild(settingsBookmarksDesc);
 settingsBookmarksSection.appendChild(scanBookmarksBtn);
 settingsBookmarksSection.appendChild(openStudioBtn);
+settingsBookmarksSection.appendChild(openIntelSettingsBtn);
 settingsBookmarksSection.appendChild(bookmarksResultDiv);
 settingsBookmarksSection.appendChild(cleanBookmarksBtn);
 settingsBookmarksSection.appendChild(bookmarkReportDiv);
@@ -2333,6 +2652,515 @@ cleanBookmarksBtn.addEventListener("click", async () => {
     openBookmarkStudio();
 });
 
+// --- TAB & TITLE INTELLIGENCE SUITE MODAL ---
+const intelScrim = document.createElement("div");
+intelScrim.className = "tabby-intelligence-scrim";
+
+const intelModal = document.createElement("div");
+intelModal.className = "tabby-intelligence-modal";
+
+// Header
+const intelHeader = document.createElement("div");
+intelHeader.className = "tabby-intel-header";
+
+const intelTitleGroup = document.createElement("div");
+intelTitleGroup.className = "tabby-intel-title-group";
+
+const intelTitle = document.createElement("h2");
+intelTitle.textContent = "📊 Tab & Title Intelligence Suite";
+
+const intelSubtitle = document.createElement("p");
+intelSubtitle.textContent = "Datatable management, title keyword analytics, non-adjacent co-occurrence matrix, and prompt synthesis.";
+
+intelTitleGroup.appendChild(intelTitle);
+intelTitleGroup.appendChild(intelSubtitle);
+
+const intelCloseBtn = document.createElement("button");
+intelCloseBtn.type = "button";
+intelCloseBtn.className = "tabby-studio-close-btn";
+intelCloseBtn.textContent = "Close Suite";
+intelCloseBtn.addEventListener("click", () => closeIntelligenceModal());
+
+intelHeader.appendChild(intelTitleGroup);
+intelHeader.appendChild(intelCloseBtn);
+
+// Navigation Bar
+const intelNav = document.createElement("div");
+intelNav.className = "tabby-intel-nav";
+
+const intelNavButtons = {};
+for (let [tabKey, tabLabel] of [
+    ["table", "📋 Datatable & Bookmark Manager"],
+    ["analytics", "📊 Language & Co-occurrence Analytics"],
+    ["prompts", "🤖 Prompt Synthesizer"]
+]) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "tabby-intel-nav-btn";
+    btn.textContent = tabLabel;
+    btn.dataset.tab = tabKey;
+    btn.addEventListener("click", () => switchIntelligenceTab(tabKey));
+    intelNav.appendChild(btn);
+    intelNavButtons[tabKey] = btn;
+}
+
+// Body container
+const intelBody = document.createElement("div");
+intelBody.className = "tabby-intel-body";
+
+intelModal.appendChild(intelHeader);
+intelModal.appendChild(intelNav);
+intelModal.appendChild(intelBody);
+
+document.body.appendChild(intelScrim);
+document.body.appendChild(intelModal);
+
+intelScrim.addEventListener("click", (e) => {
+    if (e.target === intelScrim) closeIntelligenceModal();
+});
+
+let currentIntelTab = "table";
+let intelSearchText = "";
+let intelStatusFilter = "all";
+let intelSortBy = "title_asc";
+let intelSelectedTabIds = new Set();
+let intelPromptTemplate = "research";
+
+function openIntelligenceModal(initialTab = "table") {
+    closeMenus();
+    currentIntelTab = initialTab;
+    intelScrim.classList.add("-open");
+    intelModal.classList.add("-open");
+    intelModal.setAttribute("aria-hidden", "false");
+    renderIntelligenceSuiteContent();
+}
+
+function closeIntelligenceModal() {
+    intelScrim.classList.remove("-open");
+    intelModal.classList.remove("-open");
+    intelModal.setAttribute("aria-hidden", "true");
+}
+
+function switchIntelligenceTab(tabKey) {
+    currentIntelTab = tabKey;
+    renderIntelligenceSuiteContent();
+}
+
+async function renderIntelligenceSuiteContent() {
+    for (let [key, btn] of Object.entries(intelNavButtons)) {
+        btn.classList.toggle("-active", key === currentIntelTab);
+    }
+    intelBody.replaceChildren();
+
+    const currentTabs = tabState || [];
+
+    // Automatically record visit intelligence
+    for (const tab of currentTabs) {
+        recordTabVisit(tab, isBookmarked(tab));
+    }
+
+    if (currentIntelTab === "table") {
+        renderDatatableView(currentTabs);
+    } else if (currentIntelTab === "analytics") {
+        renderAnalyticsView(currentTabs);
+    } else if (currentIntelTab === "prompts") {
+        renderPromptSynthesizerView(currentTabs);
+    }
+}
+
+function renderDatatableView(tabs) {
+    const toolbar = document.createElement("div");
+    toolbar.className = "tabby-intel-toolbar";
+
+    const searchInput = document.createElement("input");
+    searchInput.type = "search";
+    searchInput.className = "tabby-intel-search";
+    searchInput.placeholder = "Filter titles, URLs, or domains...";
+    searchInput.value = intelSearchText;
+    searchInput.addEventListener("input", (e) => {
+        intelSearchText = e.target.value;
+        renderDatatableView(tabs);
+    });
+
+    const statusSelect = document.createElement("select");
+    statusSelect.className = "tabby-intel-select";
+    for (let [val, lbl] of [
+        ["all", "All Tabs"],
+        ["bookmarked", "Bookmarked"],
+        ["unbookmarked", "Unbookmarked"],
+        ["pinned", "Pinned"],
+        ["discarded", "Discarded"],
+        ["audible", "Audible"]
+    ]) {
+        let opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = lbl;
+        if (val === intelStatusFilter) opt.selected = true;
+        statusSelect.appendChild(opt);
+    }
+    statusSelect.addEventListener("change", (e) => {
+        intelStatusFilter = e.target.value;
+        renderDatatableView(tabs);
+    });
+
+    const sortSelect = document.createElement("select");
+    sortSelect.className = "tabby-intel-select";
+    for (let [val, lbl] of [
+        ["title_asc", "Title (A-Z)"],
+        ["title_desc", "Title (Z-A)"],
+        ["domain", "Domain"],
+        ["index", "Tab Order Index"]
+    ]) {
+        let opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = lbl;
+        if (val === intelSortBy) opt.selected = true;
+        sortSelect.appendChild(opt);
+    }
+    sortSelect.addEventListener("change", (e) => {
+        intelSortBy = e.target.value;
+        renderDatatableView(tabs);
+    });
+
+    // Batch buttons
+    const batchGroup = document.createElement("div");
+    batchGroup.style.display = "flex";
+    batchGroup.style.gap = "8px";
+
+    const copyMarkdownBtn = document.createElement("button");
+    copyMarkdownBtn.type = "button";
+    copyMarkdownBtn.className = "tabby-button -secondary";
+    copyMarkdownBtn.textContent = "📋 Copy Markdown Links";
+    copyMarkdownBtn.addEventListener("click", () => {
+        const selected = tabs.filter(t => intelSelectedTabIds.has(t.id));
+        const listToCopy = selected.length > 0 ? selected : tabs;
+        const mdText = listToCopy.map(t => `- [${t.title || getDisplayUrl(t)}](${t.url})`).join("\n");
+        navigator.clipboard.writeText(mdText);
+        setStatus(`Copied ${listToCopy.length} markdown links to clipboard!`);
+    });
+
+    const exportCsvBtn = document.createElement("button");
+    exportCsvBtn.type = "button";
+    exportCsvBtn.className = "tabby-button -secondary";
+    exportCsvBtn.textContent = "💾 Export CSV";
+    exportCsvBtn.addEventListener("click", () => {
+        const rows = [["Tab ID", "Title", "URL", "Domain", "Pinned", "Bookmarked", "Discarded"]];
+        for (const t of tabs) {
+            rows.push([t.id, `"${(t.title||'').replace(/"/g, '""')}"`, `"${t.url}"`, `"${getDomain(t)}"`, t.pinned, isBookmarked(t), t.discarded]);
+        }
+        const csvContent = "data:text/csv;charset=utf-8," + rows.map(r => r.join(",")).join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `tabby_tab_table_${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+
+    batchGroup.appendChild(copyMarkdownBtn);
+    batchGroup.appendChild(exportCsvBtn);
+
+    toolbar.appendChild(searchInput);
+    toolbar.appendChild(statusSelect);
+    toolbar.appendChild(sortSelect);
+    toolbar.appendChild(batchGroup);
+
+    // Apply filtering & sorting
+    let filtered = tabs.filter(t => {
+        let q = intelSearchText.toLowerCase();
+        let title = (t.title || "").toLowerCase();
+        let url = (t.url || "").toLowerCase();
+        let dom = getDomain(t).toLowerCase();
+        if (q && !title.includes(q) && !url.includes(q) && !dom.includes(q)) return false;
+        
+        if (intelStatusFilter === "bookmarked") return isBookmarked(t);
+        if (intelStatusFilter === "unbookmarked") return !isBookmarked(t);
+        if (intelStatusFilter === "pinned") return t.pinned;
+        if (intelStatusFilter === "discarded") return t.discarded;
+        if (intelStatusFilter === "audible") return t.audible;
+        return true;
+    });
+
+    if (intelSortBy === "title_asc") filtered.sort((a,b) => (a.title||"").localeCompare(b.title||""));
+    if (intelSortBy === "title_desc") filtered.sort((a,b) => (b.title||"").localeCompare(a.title||""));
+    if (intelSortBy === "domain") filtered.sort((a,b) => getDomain(a).localeCompare(getDomain(b)));
+    if (intelSortBy === "index") filtered.sort((a,b) => a.index - b.index);
+
+    // Table view
+    const tableContainer = document.createElement("div");
+    tableContainer.className = "tabby-intel-table-container";
+
+    const table = document.createElement("table");
+    table.className = "tabby-intel-table";
+
+    const thead = document.createElement("thead");
+    thead.innerHTML = `
+        <tr>
+            <th style="width:36px;"><input type="checkbox" id="intel-select-all" /></th>
+            <th>Title</th>
+            <th>Domain</th>
+            <th>Index / Age</th>
+            <th>Status Badges</th>
+            <th>Bookmark</th>
+            <th style="text-align:right;">Actions</th>
+        </tr>
+    `;
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    for (const tab of filtered) {
+        const tr = document.createElement("tr");
+
+        const tdCheck = document.createElement("td");
+        const chk = document.createElement("input");
+        chk.type = "checkbox";
+        chk.checked = intelSelectedTabIds.has(tab.id);
+        chk.addEventListener("change", (e) => {
+            if (e.target.checked) intelSelectedTabIds.add(tab.id);
+            else intelSelectedTabIds.delete(tab.id);
+        });
+        tdCheck.appendChild(chk);
+
+        const tdTitle = document.createElement("td");
+        tdTitle.style.fontWeight = "600";
+        tdTitle.style.maxWidth = "400px";
+        const titleLink = document.createElement("a");
+        titleLink.href = "#";
+        titleLink.textContent = tab.title || tab.url || "Untitled";
+        titleLink.style.color = "#38bdf8";
+        titleLink.style.textDecoration = "none";
+        titleLink.addEventListener("click", (e) => {
+            e.preventDefault();
+            activateTab(tab);
+            closeIntelligenceModal();
+        });
+        tdTitle.appendChild(titleLink);
+
+        const tdDomain = document.createElement("td");
+        tdDomain.textContent = getDomain(tab);
+        tdDomain.style.color = "#94a3b8";
+
+        const tdAge = document.createElement("td");
+        tdAge.textContent = `Tab ${tab.index + 1} (${describeOpenedAt(tab)})`;
+
+        const tdBadges = document.createElement("td");
+        if (tab.pinned) {
+            let p = document.createElement("span");
+            p.className = "tabby-intel-pill -active";
+            p.textContent = "Pinned";
+            tdBadges.appendChild(p);
+        }
+        if (tab.discarded) {
+            let p = document.createElement("span");
+            p.className = "tabby-intel-pill -warning";
+            p.textContent = "Discarded";
+            tdBadges.appendChild(p);
+        }
+        if (tab.audible) {
+            let p = document.createElement("span");
+            p.className = "tabby-intel-pill -active";
+            p.textContent = "Audible";
+            tdBadges.appendChild(p);
+        }
+
+        const tdBookmark = document.createElement("td");
+        const isB = isBookmarked(tab);
+        let bPill = document.createElement("span");
+        bPill.className = isB ? "tabby-intel-pill -active" : "tabby-intel-pill";
+        bPill.textContent = isB ? "★ Bookmarked" : "☆ Unbookmarked";
+        tdBookmark.appendChild(bPill);
+
+        const tdActions = document.createElement("td");
+        tdActions.style.textAlign = "right";
+        const switchBtn = createActionButton("Jump", "Switch to tab", () => {
+            activateTab(tab);
+            closeIntelligenceModal();
+            return Promise.resolve();
+        });
+        const closeBtn = createActionButton("Close", "Close tab", () => {
+            return closeTab(tab).then(() => renderIntelligenceSuiteContent());
+        });
+        tdActions.appendChild(switchBtn);
+        tdActions.appendChild(closeBtn);
+
+        tr.appendChild(tdCheck);
+        tr.appendChild(tdTitle);
+        tr.appendChild(tdDomain);
+        tr.appendChild(tdAge);
+        tr.appendChild(tdBadges);
+        tr.appendChild(tdBookmark);
+        tr.appendChild(tdActions);
+        tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    tableContainer.appendChild(table);
+
+    intelBody.appendChild(toolbar);
+    intelBody.appendChild(tableContainer);
+
+    const selectAllChk = thead.querySelector("#intel-select-all");
+    selectAllChk?.addEventListener("change", (e) => {
+        if (e.target.checked) filtered.forEach(t => intelSelectedTabIds.add(t.id));
+        else intelSelectedTabIds.clear();
+        renderDatatableView(tabs);
+    });
+}
+
+function renderAnalyticsView(tabs) {
+    const cloud = extractKeywordCloud(tabs);
+    const bigrams = extractNgrams(tabs, 2);
+    const coOccur = extractNonAdjacentCoOccurrences(tabs);
+    const clusters = clusterByDomainAndTheme(tabs);
+
+    // Section 1: Word Cloud
+    const cloudCard = document.createElement("div");
+    cloudCard.className = "tabby-intel-section-card";
+    const cloudTitle = document.createElement("h3");
+    cloudTitle.textContent = "☁ Title Keyword Frequency Cloud";
+    cloudCard.appendChild(cloudTitle);
+
+    const cloudDiv = document.createElement("div");
+    cloudDiv.className = "tabby-intel-cloud";
+    for (const item of cloud.slice(0, 30)) {
+        const bubble = document.createElement("button");
+        bubble.className = "tabby-intel-bubble";
+        bubble.textContent = `${item.word} (${item.count})`;
+        bubble.addEventListener("click", () => {
+            intelSearchText = item.word;
+            switchIntelligenceTab("table");
+        });
+        cloudDiv.appendChild(bubble);
+    }
+    cloudCard.appendChild(cloudDiv);
+
+    // Section 2: Non-adjacent Co-occurrences & N-Grams
+    const grid = document.createElement("div");
+    grid.className = "tabby-intel-card-grid";
+
+    // Non-adjacent Co-occurrences Card
+    const coCard = document.createElement("div");
+    coCard.className = "tabby-intel-section-card";
+    const coTitle = document.createElement("h3");
+    coTitle.textContent = "🔗 Non-Adjacent Co-Occurring Words Matrix";
+    coTitle.title = "Words frequently appearing together in titles across your session, even if separated by other terms.";
+    coCard.appendChild(coTitle);
+
+    const coTable = document.createElement("table");
+    coTable.className = "tabby-intel-table";
+    coTable.innerHTML = `<thead><tr><th>Word Pair</th><th>Co-occurrences</th><th>Score</th></tr></thead>`;
+    const coTbody = document.createElement("tbody");
+    for (const item of coOccur.slice(0, 10)) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td><strong>${item.pair}</strong></td><td>${item.count}</td><td><span class="tabby-intel-pill -active">${item.score.toFixed(2)}</span></td>`;
+        coTbody.appendChild(tr);
+    }
+    coTable.appendChild(coTbody);
+    coCard.appendChild(coTable);
+
+    // Adjacent N-grams Card
+    const ngramCard = document.createElement("div");
+    ngramCard.className = "tabby-intel-section-card";
+    const ngramTitle = document.createElement("h3");
+    ngramTitle.textContent = "🔤 Common Multi-Word Phrases (N-Grams)";
+    ngramCard.appendChild(ngramTitle);
+
+    const ngramTable = document.createElement("table");
+    ngramTable.className = "tabby-intel-table";
+    ngramTable.innerHTML = `<thead><tr><th>Phrase</th><th>Frequency</th></tr></thead>`;
+    const ngramTbody = document.createElement("tbody");
+    for (const item of bigrams.slice(0, 10)) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td><strong>${item.phrase}</strong></td><td>${item.count}</td>`;
+        ngramTbody.appendChild(tr);
+    }
+    ngramTable.appendChild(ngramTbody);
+    ngramCard.appendChild(ngramTable);
+
+    grid.appendChild(coCard);
+    grid.appendChild(ngramCard);
+
+    // Section 3: Domain Clusters
+    const clusterCard = document.createElement("div");
+    clusterCard.className = "tabby-intel-section-card";
+    const clusterTitle = document.createElement("h3");
+    clusterTitle.textContent = "🌐 Domain & Theme Clusters";
+    clusterCard.appendChild(clusterTitle);
+
+    const clusterTable = document.createElement("table");
+    clusterTable.className = "tabby-intel-table";
+    clusterTable.innerHTML = `<thead><tr><th>Domain</th><th>Tab Count</th><th>Extracted Topic Keywords</th></tr></thead>`;
+    const clusterTbody = document.createElement("tbody");
+    for (const cl of clusters) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td><strong>${cl.domain}</strong></td><td>${cl.count}</td><td>${cl.topKeywords.join(", ") || "General"}</td>`;
+        clusterTbody.appendChild(tr);
+    }
+    clusterTable.appendChild(clusterTbody);
+    clusterCard.appendChild(clusterTable);
+
+    intelBody.appendChild(cloudCard);
+    intelBody.appendChild(grid);
+    intelBody.appendChild(clusterCard);
+}
+
+function renderPromptSynthesizerView(tabs) {
+    const card = document.createElement("div");
+    card.className = "tabby-intel-section-card";
+
+    const title = document.createElement("h3");
+    title.textContent = "🤖 LLM Prompt Synthesizer";
+    const desc = document.createElement("p");
+    desc.style.color = "#94a3b8";
+    desc.style.marginBottom = "14px";
+    desc.textContent = "Transform your open tab titles and extracted co-occurrences into high-yield, structured prompts for ChatGPT, Claude, and Gemini.";
+
+    const templateBar = document.createElement("div");
+    templateBar.style.display = "flex";
+    templateBar.style.gap = "12px";
+    templateBar.style.marginBottom = "16px";
+
+    for (let [type, label] of [
+        ["research", "🔬 Research Session Synthesis"],
+        ["developer", "💻 Developer Context Pack"],
+        ["bookmark_digest", "📚 Bookmark Knowledge Digest"]
+    ]) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = type === intelPromptTemplate ? "tabby-button -primary" : "tabby-button -secondary";
+        btn.textContent = label;
+        btn.addEventListener("click", () => {
+            intelPromptTemplate = type;
+            renderPromptSynthesizerView(tabs);
+        });
+        templateBar.appendChild(btn);
+    }
+
+    const promptText = generateLlmPrompt(tabs, intelPromptTemplate);
+
+    const textarea = document.createElement("textarea");
+    textarea.className = "tabby-intel-textarea";
+    textarea.value = promptText;
+
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "tabby-button -accent";
+    copyBtn.style.marginTop = "14px";
+    copyBtn.textContent = "📋 Copy Prompt to Clipboard";
+    copyBtn.addEventListener("click", () => {
+        navigator.clipboard.writeText(textarea.value);
+        setStatus("Copied synthesized prompt to clipboard!");
+    });
+
+    card.appendChild(title);
+    card.appendChild(desc);
+    card.appendChild(templateBar);
+    card.appendChild(textarea);
+    card.appendChild(copyBtn);
+
+    intelBody.appendChild(card);
+}
+
 settingsPanel.appendChild(settingsHeader);
 settingsPanel.appendChild(settingsTogglesSection);
 settingsPanel.appendChild(settingsSessionSection);
@@ -2724,6 +3552,44 @@ function renderTabCard(tab) {
         minimalTitle.textContent = tab.title || tab.pendingUrl || tab.url || "Untitled tab";
         minimalTitle.title = tab.title || tab.pendingUrl || tab.url || "Untitled tab";
         button.appendChild(minimalTitle);
+    }
+
+    if (viewState.detailMode === "title") {
+        article.classList.add("-title-only");
+        previewContainer.style.display = "none";
+
+        const titleRow = document.createElement("div");
+        titleRow.className = "tabby-title-only-header";
+
+        if (tab.favIconUrl) {
+            const fav = document.createElement("img");
+            fav.className = "tabby-title-only-favicon";
+            fav.src = tab.favIconUrl;
+            fav.alt = "";
+            titleRow.appendChild(fav);
+        }
+
+        const titleTxt = document.createElement("div");
+        titleTxt.className = "tabby-title-only-title";
+        titleTxt.textContent = tab.title || tab.pendingUrl || tab.url || "Untitled tab";
+        titleTxt.title = tab.title || tab.pendingUrl || tab.url || "Untitled tab";
+        titleRow.appendChild(titleTxt);
+
+        const domTag = document.createElement("div");
+        domTag.className = "tabby-title-only-domain";
+        domTag.textContent = getDomain(tab);
+        titleRow.appendChild(domTag);
+
+        button.appendChild(titleRow);
+
+        const badges = document.createElement("div");
+        badges.className = "tabby-badges";
+        badges.appendChild(createBadge(describeOpenedAt(tab)));
+        if (isBookmarked(tab)) badges.appendChild(createBadge("Bookmarked"));
+        if (tab.audible) badges.appendChild(createBadge("Audible"));
+        if (tab.discarded) badges.appendChild(createBadge("Discarded"));
+
+        button.appendChild(badges);
     }
 
     button.addEventListener("click", async event => {

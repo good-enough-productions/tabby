@@ -215,8 +215,8 @@ browser.runtime.onMessage.addListener(message => {
     }
 });
 browser.runtime.onMessage.addListener(message => {
-    if (message["_"] === "bookmark:removeNext") {
-        return removeNextBookmark(message.url);
+    if (message["_"] === "bookmark:moveToRepeat") {
+        return moveNextToRepeatBookmark(message.url);
     }
 });
 browser.runtime.onMessage.addListener(message => {
@@ -289,7 +289,7 @@ async function _persistSessionHistory() {
     await browser.storage.local.set({ [SESSION_HISTORY_KEY]: _sessionHistory });
 }
 
-import { ensureUrlBookmarkedAsNextOnlyIfUnbookmarked, removeNextBookmark } from "./bookmarkRules";
+import { ensureUrlBookmarkedAsNextOnlyIfUnbookmarked, moveNextToRepeatBookmark } from "./bookmarkRules";
 
 async function _saveWindowAsSession(tabs) {
     const { [SESSION_AUTOSAVE_KEY]: autosave } = await browser.storage.local.get(SESSION_AUTOSAVE_KEY);
@@ -320,7 +320,11 @@ async function _saveWindowAsSession(tabs) {
     // Auto-bookmark non-bookmarked tabs in Next folder only if they have NO bookmarks anywhere
     for (const t of entryTabs) {
         if (t.url) {
-            ensureUrlBookmarkedAsNextOnlyIfUnbookmarked(t.url, t.title).catch(e => console.error("Auto-bookmark failed:", e));
+            try {
+                await ensureUrlBookmarkedAsNextOnlyIfUnbookmarked(t.url, t.title);
+            } catch (e) {
+                console.error("Auto-bookmark failed:", e);
+            }
         }
     }
 
