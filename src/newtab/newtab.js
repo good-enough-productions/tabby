@@ -44,6 +44,7 @@ let bookmarkState = {};
 let tabState = [];
 let dragTabId;
 let bookmarkBarFolders = [];
+let starredTabIds = new Set();
 
 const selectionState = {
     active: false,
@@ -382,6 +383,49 @@ style.textContent = `
 
     .tabby-close-overlay:hover {
         background: rgba(190, 30, 45, 0.82);
+    }
+
+    .tabby-star-overlay {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        border: none;
+        background: rgba(13, 27, 45, 0.55);
+        color: #fff;
+        font-size: 15px;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 120ms ease, background 120ms ease;
+        z-index: 3;
+        backdrop-filter: blur(4px);
+    }
+
+    .tabby-card:hover .tabby-star-overlay,
+    .tabby-star-overlay.-active {
+        opacity: 1;
+    }
+
+    .tabby-star-overlay:hover {
+        background: rgba(230, 160, 10, 0.82);
+    }
+
+    .tabby-star-overlay.-active {
+        background: rgba(230, 160, 10, 0.95);
+        color: #fff;
+    }
+
+    .-starred-duplicate {
+        border-color: rgba(230, 160, 10, 0.4);
+    }
+    .-starred-duplicate:hover {
+        border-color: rgba(230, 160, 10, 0.8);
     }
 
     .tabby-minimal-title {
@@ -1769,6 +1813,26 @@ hint.title = "Hints change based on the current mode, including drag-and-drop li
 
 const list = document.createElement("div");
 list.className = "tabby-grid";
+
+const starredSection = document.createElement("div");
+starredSection.className = "tabby-starred-section";
+starredSection.style.display = "none";
+starredSection.style.marginBottom = "32px";
+
+const starredHeading = document.createElement("h3");
+starredHeading.textContent = "Starred";
+starredHeading.style.margin = "0 0 16px";
+starredHeading.style.color = "var(--tabby-muted)";
+starredHeading.style.fontSize = "16px";
+starredHeading.style.fontWeight = "600";
+starredHeading.style.textTransform = "uppercase";
+starredHeading.style.letterSpacing = "0.05em";
+
+const starredList = document.createElement("div");
+starredList.className = "tabby-grid";
+
+starredSection.appendChild(starredHeading);
+starredSection.appendChild(starredList);
 
 const settingsScrim = document.createElement("div");
 settingsScrim.className = "tabby-settings-scrim";
@@ -3176,6 +3240,7 @@ topPanelInner.appendChild(metaBar);
 topPanel.appendChild(topPanelInner);
 
 shell.appendChild(topPanel);
+shell.appendChild(starredSection);
 shell.appendChild(list);
 root.appendChild(shell);
 document.body.appendChild(settingsScrim);
@@ -3496,6 +3561,28 @@ function renderTabCard(tab) {
             closeTab(tab).catch(error => setStatus(`Failed to close tab: ${error}`));
         });
         previewContainer.appendChild(closeOverlay);
+
+        const starOverlay = document.createElement("button");
+        starOverlay.type = "button";
+        starOverlay.className = "tabby-star-overlay";
+        if (starredTabIds.has(tab.id)) {
+            starOverlay.classList.add("-active");
+        }
+        starOverlay.innerHTML = starredTabIds.has(tab.id)
+            ? `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`
+            : `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`;
+        starOverlay.title = starredTabIds.has(tab.id) ? "Unstar tab" : "Star tab";
+        starOverlay.setAttribute("aria-label", starOverlay.title);
+        starOverlay.addEventListener("click", event => {
+            event.stopPropagation();
+            if (starredTabIds.has(tab.id)) {
+                starredTabIds.delete(tab.id);
+            } else {
+                starredTabIds.add(tab.id);
+            }
+            renderVisibleTabs();
+        });
+        previewContainer.appendChild(starOverlay);
     }
 
     button.appendChild(previewContainer);
@@ -3901,6 +3988,20 @@ function renderVisibleTabs() {
     let visibleTabs = getFilteredSortedTabs();
     setStatus(`${visibleTabs.length} of ${tabState.length} tab${tabState.length === 1 ? "" : "s"} in this window.${viewState.keepPinned ? " Tabby stays pinned at the front for quick return." : ""}`);
     updateHint(visibleTabs);
+
+    const visibleStarredTabs = visibleTabs.filter(t => starredTabIds.has(t.id));
+    if (visibleStarredTabs.length > 0) {
+        starredList.replaceChildren(...visibleStarredTabs.map(t => {
+            const card = renderTabCard(t);
+            card.draggable = false;
+            card.classList.add("-starred-duplicate");
+            return card;
+        }));
+        starredSection.style.display = "block";
+    } else {
+        starredSection.style.display = "none";
+        starredList.replaceChildren();
+    }
 
     if (visibleTabs.length === 0) {
         let empty = document.createElement("div");
