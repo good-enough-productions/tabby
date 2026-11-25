@@ -13,3 +13,5 @@ dist/manifest.json
 dist/*.module.wasm
 dist/441.js*
 dist/856.js*
+dist/
+releases/
